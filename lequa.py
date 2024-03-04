@@ -58,6 +58,7 @@ def evaluate(model, task='T1', result_path=None, data_dir=None):
     ground_truth_path = os.path.join(data_dir, f'{task}/public/dev_prevalences.txt')
     true_prevs = ResultSubmission().load(ground_truth_path)
     result = ResultSubmission()
+    print('Starting evaluation ...')
     for id, sample, _ in tqdm(gen_load_samples(sample_dir, ground_truth_path, return_id=True), total=1000):
         preds = model.predict(sample)
         result.add(id, preds)
@@ -65,13 +66,16 @@ def evaluate(model, task='T1', result_path=None, data_dir=None):
         result.dump(result_path)
     metrics = metric_map[task]
     errors = []
+    print('\nCalculating metrics ...')
     for metric in metrics:
         eval = evaluate_submission(true_prevs, result, SAMPLE_SIZE[task], metric, average=False)
         errors.append((metric, eval.mean(), eval.std()))
+        print(f'm{metric}: {eval.mean():.5f} ~ {eval.std():.5f}')
     return errors
 
 if __name__ == '__main__':
-    from qunfold import KMM
+    from qunfold import KMM, PACC, KDEyML
+    from sklearn.ensemble import RandomForestClassifier
     task = 'T4'
 
     X, y = load_lequa2024(task=task)
@@ -80,7 +84,12 @@ if __name__ == '__main__':
         X = X.reshape((X.shape[0]*X.shape[1], 256))
         y = y.flatten()
 
-    model = KMM().fit(X, y)
-    errs = evaluate(model, task=task, result_path="results.txt")
-    for label, mean, std in errs:
-        print(f'm{label}: {mean:.5f} ~ {std:.5f}')
+    #kde = KDEyML(RandomForestClassifier(oob_score=True), bandwidth=10).fit(X, y)
+    pacc = PACC(classifier=RandomForestClassifier(oob_score=True)).fit(X, y)
+    kmm = KMM().fit(X, y)
+    print('Method: PACC')
+    errs_pacc = evaluate(pacc, task=task, result_path="results_pacc.txt")
+    print('\n\nMethod: KMM')
+    errs_kmm = evaluate(kmm, task=task, result_path="results_kmm.txt")
+    #print('\n\nMethod: KDEyML')
+    #errs_kde = evaluate(kde, task=task, result_path="results_kde.txt")
