@@ -1,6 +1,6 @@
-from data import load_vector_documents, ResultSubmission, gen_load_samples
-from evaluate import evaluate_submission
-from constants import SAMPLE_SIZE
+from utils.data import load_vector_documents, ResultSubmission, gen_load_samples
+from utils.evaluate import evaluate_submission
+from utils.constants import SAMPLE_SIZE
 from tqdm import tqdm
 import os
 from pathlib import Path
@@ -47,7 +47,7 @@ def load_lequa2024(task='T1', data_dir=None):
         X, y = load_vector_documents(data_path)
     return X, y
 
-def evaluate(model, task='T1', result_path=None, data_dir=None):
+def evaluate_model(model, task='T1', result_path=None, data_dir=None):
     task = task.lower()
     if task != 't1' and task != 't2' and task != 't3' and task != 't4':
         raise ValueError(f'Invalid task specification {task.upper()}. T1-T4 are supported')
@@ -72,24 +72,3 @@ def evaluate(model, task='T1', result_path=None, data_dir=None):
         errors.append((metric, eval.mean(), eval.std()))
         print(f'm{metric}: {eval.mean():.5f} ~ {eval.std():.5f}')
     return errors
-
-if __name__ == '__main__':
-    from qunfold import KMM, PACC, KDEyML
-    from sklearn.ensemble import RandomForestClassifier
-    task = 'T4'
-
-    X, y = load_lequa2024(task=task)
-
-    if task == 'T3':
-        X = X.reshape((X.shape[0]*X.shape[1], 256))
-        y = y.flatten()
-
-    #kde = KDEyML(RandomForestClassifier(oob_score=True), bandwidth=10).fit(X, y)
-    pacc = PACC(classifier=RandomForestClassifier(oob_score=True)).fit(X, y)
-    kmm = KMM().fit(X, y)
-    print('Method: PACC')
-    errs_pacc = evaluate(pacc, task=task, result_path="results_pacc.txt")
-    print('\n\nMethod: KMM')
-    errs_kmm = evaluate(kmm, task=task, result_path="results_kmm.txt")
-    #print('\n\nMethod: KDEyML')
-    #errs_kde = evaluate(kde, task=task, result_path="results_kde.txt")

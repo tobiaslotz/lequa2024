@@ -1,5 +1,5 @@
 import argparse
-from data import ResultSubmission
+from utils.data import ResultSubmission
 
 """
 LeQua2024 Official format-checker script 

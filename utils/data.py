@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from glob import glob
 
-import constants
+import utils.constants as constants
 
 
 def load_category_map(path):
