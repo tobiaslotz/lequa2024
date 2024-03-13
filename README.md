@@ -1,1 +1,3 @@
-# Utilities for Working with the LeQua2024 Dataset
+## LeQua2024 Competition
+
+Repository that contains utilities and models for the LeQua2024 competition.
