@@ -11,6 +11,7 @@ from qunfold.quapy import QuaPyWrapper
 from qunfold.sklearn import CVClassifier
 from sklearn.linear_model import LogisticRegression
 from time import time
+from ..methods import KDEyMLQP
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -121,7 +122,13 @@ def main(
         "classifier__class_weight": clf_grid["transformer__classifier__estimator__class_weight"],
     }
     methods = [ # (method_name, method, param_grid)
-        ("PACC", QuaPyWrapper(PACC(clf, seed=seed)), clf_grid),
+        # ("PACC", QuaPyWrapper(PACC(clf, seed=seed)), clf_grid),
+        ("KDEy", KDEyMLQP(qp_clf, random_state=seed), {
+            "bandwidth": np.linspace(0.01, 0.2, 20),
+            "classifier__C": np.logspace(-3, 3, 7),
+            "classifier__class_weight" : ["balanced", None],
+            # **qp_clf_grid,
+        }),
         ("SLD", qp.method.aggregative.EMQ(qp_clf), qp_clf_grid),
     ]
 
@@ -138,7 +145,10 @@ def main(
             "classifier__C": clf_grid["transformer__classifier__estimator__C"],
         }
         methods = [ # (method_name, method, param_grid)
-            ("PACC", QuaPyWrapper(PACC(clf, seed=seed)), clf_grid),
+            # ("PACC", QuaPyWrapper(PACC(clf, seed=seed)), clf_grid),
+            ("KDEy", KDEyMLQP(qp_clf, random_state=seed), {
+                "bandwidth": np.linspace(0.01, 0.2, 2),
+            }),
             ("SLD", qp.method.aggregative.EMQ(qp_clf), qp_clf_grid),
         ]
         trn_data = trn_data.split_stratified(3000, random_state=seed)[0] # subsample
