@@ -1,6 +1,6 @@
-from utils.data import load_vector_documents, ResultSubmission, gen_load_samples
-from utils.evaluate import evaluate_submission
-from utils.constants import SAMPLE_SIZE
+from .data import load_vector_documents, ResultSubmission, gen_load_samples
+from .evaluate import evaluate_submission
+from .constants import SAMPLE_SIZE
 from tqdm import tqdm
 import os
 from pathlib import Path

@@ -4,8 +4,8 @@ from typing import Callable
 import numpy as np
 import os
 from pathlib import Path
-from utils.constants import LEQUA2024_TASKS, SAMPLE_SIZE, VALID_MEASURES, ORDINAL_MEASURES, ERROR_TOL
-from utils.data import ResultSubmission
+from .constants import LEQUA2024_TASKS, SAMPLE_SIZE, VALID_MEASURES, ORDINAL_MEASURES, ERROR_TOL
+from .data import ResultSubmission
 
 
 """

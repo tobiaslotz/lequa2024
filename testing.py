@@ -1,4 +1,4 @@
-from utils import load_lequa2024, evaluate_model
+from lequa2024.utils import load_lequa2024, evaluate_model
 from qunfold import KMM, PACC
 from sklearn.ensemble import RandomForestClassifier
 
