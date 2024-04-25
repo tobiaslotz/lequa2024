@@ -2,7 +2,7 @@ import jax.numpy as jnp
 import numpy as np
 import quapy as qp
 import qunfold
-from lequa2024.methods import MaxL, KDEyMLQP
+from lequa2024.methods import EMaxL, KDEyMLQP
 from quapy.model_selection import GridSearchQ
 from qunfold.sklearn import CVClassifier
 from sklearn.linear_model import LogisticRegression
@@ -16,13 +16,14 @@ class TestMethods(TestCase):
 
     # load the data
     trn_data, val_gen, tst_gen = qp.datasets.fetch_lequa2022(task="T1B")
-    val_gen.true_prevs.df = val_gen.true_prevs.df[:5] # use only 10 validation samples
+    val_gen.true_prevs.df = val_gen.true_prevs.df[:7] # use only 7 validation samples
 
     # configure the quantification methods
     clf = LogisticRegression(C=0.01)
     methods = [ # (method_name, method, param_grid)
         ("SLD ...........", qp.method.aggregative.EMQ(clf)),
-        ("MaxL (ours) ...", MaxL(clf, random_state=25)),
+        ("EMaxL (ours) ..", EMaxL(clf, n_estimators=30, random_state=25)),
+        ("MaxL (ours) ...", EMaxL(clf, n_estimators=1, random_state=25)),
         ("KDEy (original)", KDEyMLQP(clf, random_state=25)),
     ]
 
@@ -34,5 +35,6 @@ class TestMethods(TestCase):
             protocol = val_gen,
             error_metric = "rae",
         )
+        avg = errors.mean()
         errors = ", ".join([f"{error:.4f}" for error in errors]) # format
-        print(f"{method_name} validates RAE=({errors})")
+        print(f"{method_name} validates RAE=({errors}), avg={avg:.4f}")
