@@ -9,8 +9,16 @@ from sklearn.neighbors import KernelDensity
 from sklearn.utils.validation import check_is_fitted, NotFittedError
 from sklearn.model_selection import cross_val_predict
 from quapy.method.base import BaseQuantifier
-from qunfold.methods import Result
+from qunfold.methods import (
+  _CallbackState,
+  _check_derivative,
+  _np_softmax,
+  _rand_x0,
+  DerivativeError,
+  Result,
+)
 from qunfold.transformers import _check_y, class_prevalences, ClassTransformer
+from qunfold.losses import _jnp_softmax
 
 def _bw_scott(X):
   sigma = np.std(X, ddof=1)
@@ -69,7 +77,7 @@ class KDEBase(BaseQuantifier):
     fX = self.classifier.predict_proba(X)
     return self.solve(fX)
   @abstractmethod
-  def solve(self, X):
+  def solve(self, fX):
     pass
   def quantify(self, X):
       return self.predict(X)
@@ -101,11 +109,11 @@ class KDEyMLQP(KDEBase):
       n_cross_val=n_cross_val,
       fit_classifier=fit_classifier,
     )
-  def solve(self, X):
+  def solve(self, fX):
     np.random.RandomState(self.random_state)
     epsilon = 1e-10
     n_classes = len(self.mixture_components)
-    test_densities = [np.exp(mc.score_samples(X)) for mc in self.mixture_components]
+    test_densities = [np.exp(mc.score_samples(fX)) for mc in self.mixture_components]
     def neg_loglikelihood(prevs):
       test_mixture_likelihood = sum(prev_i * dens_i for prev_i, dens_i in zip(prevs, test_densities))
       test_loglikelihood = np.log(test_mixture_likelihood + epsilon)
@@ -121,3 +129,60 @@ class KDEyMLQP(KDEBase):
       constraints=constraints
     )
     return Result(opt.x, opt.nit, opt.message)
+
+
+class MaxL(BaseQuantifier):
+  """Our maximum likelihood method."""
+  def __init__(
+      self,
+      classifier,
+      fit_classifier = True,
+      random_state = None,
+      solver = "trust-ncg",
+      solver_options = {"gtol": 1e-16, "maxiter": 1000},
+      tau = 0,
+      ) -> None:
+    self.classifier = classifier
+    self.fit_classifier = fit_classifier
+    self.random_state = random_state
+    self.solver = solver
+    self.solver_options = solver_options
+    self.tau = tau
+  def fit(self, X, y=None, n_classes=None):
+    if y is None:
+      return self.fit(*X.Xy, X.n_classes) # assume that X is a QuaPy LabelledCollection
+    _check_y(y, n_classes)
+    self.p_trn = class_prevalences(y, n_classes)
+    self.n_classes = len(self.p_trn) # not None anymore
+    if self.fit_classifier:
+      self.classifier.fit(X, y)
+    return self
+  def quantify(self, X):
+    return self.predict(X)
+  def predict(self, X):
+    fX = self.classifier.predict_proba(X)
+    return self.solve(fX)
+  def solve(self, fX):
+    pXY = fX / self.p_trn # P(X|Y)
+    pXY = pXY / pXY.sum(axis=1, keepdims=True)
+    fun = lambda x: -jnp.log(pXY @ _jnp_softmax(x)).sum() + self.tau * jnp.dot(x, x)
+    jac = jax.grad(fun)
+    hess = jax.jacfwd(jac) # forward-mode AD
+    rng = np.random.RandomState(self.random_state)
+    x0 = _rand_x0(rng, self.n_classes) # random starting point
+    # x0 = jnp.zeros(self.n_classes-1)
+    state = _CallbackState(x0)
+    try:
+      opt = minimize(
+        fun, # JAX function l -> loss
+        x0,
+        jac = _check_derivative(jac, "jac"),
+        hess = _check_derivative(hess, "hess"),
+        method = self.solver,
+        options = self.solver_options,
+        callback = state.callback()
+      )
+    except (DerivativeError, ValueError):
+      traceback.print_exc()
+      opt = state.get_state()
+    return Result(_np_softmax(opt.x), opt.nit, opt.message)
