@@ -41,6 +41,7 @@ setup(
     zip_safe=False,
     test_suite="nose.collector",
     extras_require = {
-        "tests" : ["nose"],
+        "tests": ["nose"],
+        "plots": ["plotly==5.21.0", "notebook>=5.3", "ipywidgets>=7.5"]
     }
 )
