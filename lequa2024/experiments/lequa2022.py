@@ -142,7 +142,7 @@ def main(
         # }),
         ("EMaxL", EMaxL(qp_clf, n_estimators=1, random_state=seed), {
             "base_estimator__C": clf_grid["transformer__classifier__estimator__C"],
-            "tau": np.logspace(-5, -1, 3)
+            "tau": np.logspace(-7, -5, 3)
         }),
     ]
 
@@ -165,7 +165,7 @@ def main(
             # }),
             ("EMaxL", EMaxL(qp_clf, n_estimators=1, random_state=seed), {
                 "base_estimator__C": clf_grid["transformer__classifier__estimator__C"],
-                "tau": np.logspace(-5, -1, 2)
+                "tau": np.logspace(-7, -5, 2)
             }),
         ]
         trn_data = trn_data.split_stratified(3000, random_state=seed)[0] # subsample
