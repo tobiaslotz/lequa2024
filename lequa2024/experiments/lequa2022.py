@@ -142,8 +142,8 @@ def main(
         # }),
         ("EMaxL", EMaxL(qp_clf, n_estimators=1, random_state=seed), {
             "base_estimator__C": clf_grid["transformer__classifier__estimator__C"],
+            "tau": np.logspace(-5, -1, 3)
         }),
-        ("SLD", qp.method.aggregative.EMQ(qp_clf), qp_clf_grid),
     ]
 
     # load the data
@@ -165,8 +165,8 @@ def main(
             # }),
             ("EMaxL", EMaxL(qp_clf, n_estimators=1, random_state=seed), {
                 "base_estimator__C": clf_grid["transformer__classifier__estimator__C"],
+                "tau": np.logspace(-5, -1, 2)
             }),
-            ("SLD", qp.method.aggregative.EMQ(qp_clf), qp_clf_grid),
         ]
         trn_data = trn_data.split_stratified(3000, random_state=seed)[0] # subsample
         val_gen.true_prevs.df = val_gen.true_prevs.df[:3] # use only 3 validation samples
