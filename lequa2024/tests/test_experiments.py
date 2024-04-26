@@ -9,6 +9,19 @@ from lequa2024.experiments import (
 from sklearn.linear_model import LogisticRegression
 from unittest import TestCase
 
+class DummyQuantifier(qp.method.base.BaseQuantifier):
+  def __init__(self, uniform=True):
+    self.uniform = uniform # boolean
+  def fit(self, data):
+    self.n_classes = data.n_classes
+  def quantify(self, instances):
+    if self.uniform:
+      return np.ones(self.n_classes) / self.n_classes
+    else:
+      p = np.ones(self.n_classes) * 1e-9
+      p[1] = 1
+      return p
+
 class TestExperiments(TestCase):
   def test_uniformness_ratio_score(self):
     np.random.seed(25)
@@ -22,6 +35,11 @@ class TestExperiments(TestCase):
     score = uniformness_ratio_score(p, p)
     self.assertEqual(score.shape, (n_prevs,))
     self.assertEqual(score.mean(), mean_uniformness_ratio_score(p, p))
+    p_uniform = np.ones((n_prevs, n_classes)) / n_classes
+    self.assertTrue(np.all(uniformness_ratio_score(p, p_uniform) <= 1))
+    p_nonuniform = np.ones((n_prevs, n_classes)) * 1e-9
+    p_nonuniform[:,1] = 1
+    self.assertTrue(np.all(uniformness_ratio_score(p, p_nonuniform) >= 1))
 
   def test_my_evaluate(self):
     np.random.seed(25)
@@ -89,3 +107,21 @@ class TestExperiments(TestCase):
       verbose = True,
     ).fit(trn_data)
     print(gs.param_scores_df_)
+
+    gs = MyGridSearchQ(
+      DummyQuantifier(),
+      param_grid = { "uniform": [ True, False ]},
+      protocol = val_gen,
+      error = "mrae",
+      extra_metrics = [ "mean_uniformness_ratio_score" ],
+      refit = False,
+      raise_errors = True,
+      verbose = True,
+    ).fit(trn_data)
+    mean_uniformness_ratio_score = gs.param_scores_df_["mean_uniformness_ratio_score"]
+    self.assertTrue(np.all(
+      mean_uniformness_ratio_score[gs.param_scores_df_["uniform"] == True] <= 1
+    ))
+    self.assertTrue(np.all(
+      mean_uniformness_ratio_score[gs.param_scores_df_["uniform"] == False] >= 1
+    ))

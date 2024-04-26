@@ -13,13 +13,13 @@ def uniformness_ratio_score(prevs, prevs_hat):
         ell = np.log(p) # log-odds, i.e. ell = log(p) translated such that ell[0]=0
         if len(ell.shape) == 2:
             ell -= ell[:,0,None] # row-wise translation
-            return np.sum(ell * ell, axis=1) # row-wise dot product
+            return np.maximum(np.sum(ell * ell, axis=1), 1e-9) # row-wise dot product
         elif len(ell.shape) == 1:
             ell -= ell[0]
-            return np.dot(ell, ell)
+            return np.maximum(np.dot(ell, ell), 1e-9)
         else:
             raise ValueError("Not implemented for len(prevs.shape) > 2")
-    return uniformness(prevs) / uniformness(prevs_hat)
+    return uniformness(prevs_hat) / uniformness(prevs)
 
 def mean_uniformness_ratio_score(prevs, prevs_hat):
     """Compute the average of uniformness_ratio_score."""
