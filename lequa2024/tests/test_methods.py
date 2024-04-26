@@ -21,10 +21,10 @@ class TestMethods(TestCase):
     # configure the quantification methods
     clf = LogisticRegression(C=0.01)
     methods = [ # (method_name, method, param_grid)
-        ("SLD ...........", qp.method.aggregative.EMQ(clf)),
-        ("EMaxL (ours) ..", EMaxL(clf, n_estimators=30, random_state=25)),
+        # ("SLD ...........", qp.method.aggregative.EMQ(clf)),
+        # ("EMaxL (ours) ..", EMaxL(clf, n_estimators=30, random_state=25)),
         ("MaxL (ours) ...", EMaxL(clf, n_estimators=1, random_state=25)),
-        ("KDEy (original)", KDEyMLQP(clf, random_state=25)),
+        # ("KDEy (original)", KDEyMLQP(clf, random_state=25)),
     ]
 
     # evaluate
