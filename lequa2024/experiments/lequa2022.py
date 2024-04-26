@@ -126,7 +126,7 @@ def main(
         random_state = seed,
     )
     clf_grid = {
-        "transformer__classifier__estimator__C": np.logspace(-3, -1, 9),
+        "transformer__classifier__estimator__C": np.logspace(-3, -1, 11),
     }
     qp_clf = clf.estimator
     qp_clf_grid = {
