@@ -145,7 +145,7 @@ def main(
         # }),
         ("EMaxL", EMaxL(qp_clf, n_estimators=1, random_state=seed), {
             "base_estimator__C": clf_grid["transformer__classifier__estimator__C"],
-            "tau": np.hstack([0, np.logspace(-7, -5, 3)])
+            "tau": np.hstack([0, np.logspace(-7, -4, 4)])
         }),
     ]
 

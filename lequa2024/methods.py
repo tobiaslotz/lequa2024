@@ -309,7 +309,9 @@ class EMaxL(BaseQuantifier):
       pXY_i = estimator.predict_proba(X) / estimator_p_trn # P(X|Y)
       pXY.append(pXY_i / pXY_i.sum(axis=1, keepdims=True))
     pXY = np.concatenate(pXY) # concatenate along the dimension 0
-    fun = lambda x: -jnp.log(pXY @ _jnp_softmax(x)).mean() + self.tau * jnp.dot(x, x)
+    def fun(x):
+      p = _jnp_softmax(x)
+      return -jnp.log(pXY @ p).mean() + self.tau * jnp.sum((p[1:] - p[:-1])**2) / 2
     jac = jax.grad(fun)
     hess = jax.jacfwd(jac) # forward-mode AD
     rng = np.random.RandomState(self.random_state)
