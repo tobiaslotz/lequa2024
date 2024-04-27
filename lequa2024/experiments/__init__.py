@@ -5,7 +5,23 @@ from copy import deepcopy
 from quapy.protocol import OnLabelledCollectionProtocol
 from time import time
 
-def uniformness_ratio_score(prevs, prevs_hat):
+def probability_uniformness_ratio_score(prevs, prevs_hat):
+    """Compute xi(prevs) / xi(prevs_hat), where xi(*) is the xi_0 jaggedness score of Bunse et al. (2024), which penalizes any deviation from a uniform distribution."""
+    assert prevs.shape == prevs_hat.shape, f'wrong shape {prevs.shape} vs. {prevs_hat.shape}'
+    def uniformness(p):
+        if len(p.shape) == 2:
+            return np.sum((p[:,1:] - p[:,:-1])**2, axis=1) / 2
+        elif len(p.shape) == 1:
+            return np.sum((p[1:] - p[:-1])**2, axis=1) / 2
+        else:
+            raise ValueError("Not implemented for len(prevs.shape) > 2")
+    return uniformness(prevs_hat) / uniformness(prevs)
+
+def mean_probability_uniformness_ratio_score(prevs, prevs_hat):
+    """Compute the average of probability_uniformness_ratio_score."""
+    return probability_uniformness_ratio_score(prevs, prevs_hat).mean()
+
+def logodds_uniformness_ratio_score(prevs, prevs_hat):
     """Compute |l_prevs| / |l_prevs_hat|, where l_* is the latent vector associated with some prevalence vector and |*| is the squared L2 norm. This score reflects how uniform prevs is, relative to prevs_hat. Values larger than 1 indicate that prevs is less uniform than prevs_hat, values smaller than 1 indicate that prevs is more uniform than prevs_hat."""
     assert prevs.shape == prevs_hat.shape, f'wrong shape {prevs.shape} vs. {prevs_hat.shape}'
     def uniformness(p):
@@ -21,16 +37,20 @@ def uniformness_ratio_score(prevs, prevs_hat):
             raise ValueError("Not implemented for len(prevs.shape) > 2")
     return uniformness(prevs_hat) / uniformness(prevs)
 
-def mean_uniformness_ratio_score(prevs, prevs_hat):
-    """Compute the average of uniformness_ratio_score."""
-    return uniformness_ratio_score(prevs, prevs_hat).mean()
+def mean_logodds_uniformness_ratio_score(prevs, prevs_hat):
+    """Compute the average of logodds_uniformness_ratio_score."""
+    return logodds_uniformness_ratio_score(prevs, prevs_hat).mean()
 
 def my_from_name(err_name):
-    """A variant of quapy.error.from_name that knows our [mean_]uniformness_ratio_score."""
-    if err_name == "uniformness_ratio_score":
-        return uniformness_ratio_score
-    elif err_name == "mean_uniformness_ratio_score":
-        return mean_uniformness_ratio_score
+    """A variant of quapy.error.from_name that knows our [mean_]{probability,uniformness}_ratio_score."""
+    if err_name == "probability_uniformness_ratio_score":
+        return probability_uniformness_ratio_score
+    elif err_name == "mean_probability_uniformness_ratio_score":
+        return mean_probability_uniformness_ratio_score
+    elif err_name == "logodds_uniformness_ratio_score":
+        return logodds_uniformness_ratio_score
+    elif err_name == "mean_logodds_uniformness_ratio_score":
+        return mean_logodds_uniformness_ratio_score
     return qp.error.from_name(err_name)
 
 def my_evaluate(

@@ -1,8 +1,10 @@
 import numpy as np
 import quapy as qp
 from lequa2024.experiments import (
-    uniformness_ratio_score,
-    mean_uniformness_ratio_score,
+    probability_uniformness_ratio_score,
+    mean_probability_uniformness_ratio_score,
+    logodds_uniformness_ratio_score,
+    mean_logodds_uniformness_ratio_score,
     my_evaluate,
     MyGridSearchQ,
 )
@@ -23,23 +25,27 @@ class DummyQuantifier(qp.method.base.BaseQuantifier):
       return p
 
 class TestExperiments(TestCase):
-  def test_uniformness_ratio_score(self):
+  def test_uniformness_ratio_scores(self):
     np.random.seed(25)
     n_classes = 3
     n_prevs = 10
     p = np.random.dirichlet(np.ones(n_classes), size=n_prevs)
-    score = uniformness_ratio_score(p, p)
-    self.assertEqual(score.shape, (n_prevs,))
-    np.testing.assert_equal(score, 1)
-    p2 = np.random.dirichlet(np.ones(n_classes), size=n_prevs)
-    score = uniformness_ratio_score(p, p)
-    self.assertEqual(score.shape, (n_prevs,))
-    self.assertEqual(score.mean(), mean_uniformness_ratio_score(p, p))
-    p_uniform = np.ones((n_prevs, n_classes)) / n_classes
-    self.assertTrue(np.all(uniformness_ratio_score(p, p_uniform) <= 1))
-    p_nonuniform = np.ones((n_prevs, n_classes)) * 1e-9
-    p_nonuniform[:,1] = 1
-    self.assertTrue(np.all(uniformness_ratio_score(p, p_nonuniform) >= 1))
+    for ratio_score, mean_ratio_score in [
+        (probability_uniformness_ratio_score, mean_probability_uniformness_ratio_score),
+        (logodds_uniformness_ratio_score, mean_logodds_uniformness_ratio_score),
+        ]:
+      score = ratio_score(p, p)
+      self.assertEqual(score.shape, (n_prevs,))
+      np.testing.assert_equal(score, 1)
+      p2 = np.random.dirichlet(np.ones(n_classes), size=n_prevs)
+      score = ratio_score(p, p)
+      self.assertEqual(score.shape, (n_prevs,))
+      self.assertEqual(score.mean(), mean_ratio_score(p, p))
+      p_uniform = np.ones((n_prevs, n_classes)) / n_classes
+      self.assertTrue(np.all(ratio_score(p, p_uniform) <= 1))
+      p_nonuniform = np.ones((n_prevs, n_classes)) * 1e-9
+      p_nonuniform[:,1] = 1
+      self.assertTrue(np.all(ratio_score(p, p_nonuniform) >= 1))
 
   def test_my_evaluate(self):
     np.random.seed(25)
@@ -60,7 +66,7 @@ class TestExperiments(TestCase):
       method,
       protocol = val_gen,
       error_metric = "mrae",
-      extra_metrics = [ "mae" ]
+      extra_metrics = [ "mae" ],
     )
     self.assertEqual(errors[0], rae)
     self.assertEqual(errors[1], mae)
@@ -68,7 +74,7 @@ class TestExperiments(TestCase):
       method,
       protocol = val_gen,
       error_metric = "rae",
-      extra_metrics = [ "ae" ]
+      extra_metrics = [ "ae" ],
     )
     np.testing.assert_equal(
       errors[0],
@@ -78,11 +84,14 @@ class TestExperiments(TestCase):
       errors[1],
       qp.evaluation.evaluate(method, protocol=val_gen, error_metric="ae")
     )
-    errors = my_evaluate( # with mean_uniformness_ratio_score
+    errors = my_evaluate( # with mean_logodds_uniformness_ratio_score
       method,
       protocol = val_gen,
       error_metric = "mrae",
-      extra_metrics = [ "mean_uniformness_ratio_score" ]
+      extra_metrics = [
+        "mean_logodds_uniformness_ratio_score",
+        "mean_probability_uniformness_ratio_score",
+      ],
     )
     self.assertGreaterEqual(errors[1], 0)
 
@@ -101,7 +110,10 @@ class TestExperiments(TestCase):
       param_grid = { "classifier__C": [ 1e-2, 1e-1 ]},
       protocol = val_gen,
       error = "mrae",
-      extra_metrics = [ "mean_uniformness_ratio_score" ],
+      extra_metrics = [
+        "mean_logodds_uniformness_ratio_score",
+        "mean_probability_uniformness_ratio_score",
+      ],
       refit = False,
       raise_errors = True,
       verbose = True,
@@ -113,15 +125,25 @@ class TestExperiments(TestCase):
       param_grid = { "uniform": [ True, False ]},
       protocol = val_gen,
       error = "mrae",
-      extra_metrics = [ "mean_uniformness_ratio_score" ],
+      extra_metrics = [
+        "mean_logodds_uniformness_ratio_score",
+        "mean_probability_uniformness_ratio_score",
+      ],
       refit = False,
       raise_errors = True,
       verbose = True,
     ).fit(trn_data)
-    mean_uniformness_ratio_score = gs.param_scores_df_["mean_uniformness_ratio_score"]
+    mean_logodds_uniformness_ratio_score = gs.param_scores_df_["mean_logodds_uniformness_ratio_score"]
     self.assertTrue(np.all(
-      mean_uniformness_ratio_score[gs.param_scores_df_["uniform"] == True] <= 1
+      mean_logodds_uniformness_ratio_score[gs.param_scores_df_["uniform"] == True] <= 1
     ))
     self.assertTrue(np.all(
-      mean_uniformness_ratio_score[gs.param_scores_df_["uniform"] == False] >= 1
+      mean_logodds_uniformness_ratio_score[gs.param_scores_df_["uniform"] == False] >= 1
+    ))
+    mean_probability_uniformness_ratio_score = gs.param_scores_df_["mean_probability_uniformness_ratio_score"]
+    self.assertTrue(np.all(
+      mean_probability_uniformness_ratio_score[gs.param_scores_df_["uniform"] == True] <= 1
+    ))
+    self.assertTrue(np.all(
+      mean_probability_uniformness_ratio_score[gs.param_scores_df_["uniform"] == False] >= 1
     ))

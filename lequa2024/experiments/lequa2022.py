@@ -44,7 +44,10 @@ def trial(
             param_grid = param_grid,
             protocol = val_gen,
             error = "m" + error_metric, # ae -> mae, rae -> mrae
-            extra_metrics = [ "mean_uniformness_ratio_score" ],
+            extra_metrics = [
+                "mean_logodds_uniformness_ratio_score",
+                "mean_probability_uniformness_ratio_score",
+            ],
             refit = False,
             n_jobs = n_jobs,
             raise_errors = True,
@@ -142,7 +145,7 @@ def main(
         # }),
         ("EMaxL", EMaxL(qp_clf, n_estimators=1, random_state=seed), {
             "base_estimator__C": clf_grid["transformer__classifier__estimator__C"],
-            "tau": np.logspace(-7, -5, 3)
+            "tau": np.hstack([0, np.logspace(-7, -5, 3)])
         }),
     ]
 
@@ -165,7 +168,7 @@ def main(
             # }),
             ("EMaxL", EMaxL(qp_clf, n_estimators=1, random_state=seed), {
                 "base_estimator__C": clf_grid["transformer__classifier__estimator__C"],
-                "tau": np.logspace(-7, -5, 2)
+                "tau": [0, 0.1]
             }),
         ]
         trn_data = trn_data.split_stratified(3000, random_state=seed)[0] # subsample
