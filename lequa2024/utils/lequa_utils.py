@@ -22,53 +22,60 @@ def load_lequa2024(task='T1', data_dir=None):
         data_dir = os.path.join(str(Path.home()), 'lequa2024_data/')
     os.makedirs(data_dir, exist_ok=True)
 
-    URL_TRAIN = f'https://zenodo.org/records/10654475/files/{task}.train_dev.zip'
+    URL_TRAIN_DEV = f'https://zenodo.org/records/11091067/files/{task}.train_dev.zip'
+    URL_TEST = f'https://zenodo.org/records/11091067/files/{task}.test.zip'
 
-    def download_data(url):
-        tmp_path = os.path.join(data_dir, f'{task}_tmp.zip')
+    def download_data(url, is_train=True):
+        train_or_test = "test"
+        if is_train:
+            train_or_test = "train"
+        tmp_path = os.path.join(data_dir, f'{train_or_test}/{task}_tmp.zip')
         download_file_if_not_exists(url, tmp_path)
         with zipfile.ZipFile(tmp_path) as file:
-            file.extractall(data_dir)
+            file.extractall(os.path.join(data_dir, train_or_test))
         os.remove(tmp_path)
 
     if task == 'T3':  
-        train_dir = os.path.join(data_dir, f'{task}/public/training_samples/')
+        train_dir = os.path.join(data_dir, f'train/{task}/public/training_samples/')
         if not os.path.exists(train_dir):
-            download_data(URL_TRAIN)
+            download_data(URL_TRAIN_DEV, is_train=True)
         N_SAMPLE_FILES = 100
-        X = np.zeros((N_SAMPLE_FILES, SAMPLE_SIZE[task], 256))
-        y = np.zeros((N_SAMPLE_FILES, SAMPLE_SIZE[task]), dtype=np.int32)
+        X_train = np.zeros((N_SAMPLE_FILES, SAMPLE_SIZE[task], 256))
+        y_train = np.zeros((N_SAMPLE_FILES, SAMPLE_SIZE[task]), dtype=np.int32)
         for i in range(N_SAMPLE_FILES):
-            X[i], y[i] = load_vector_documents(os.path.join(train_dir, f'{i}.txt'))
+            X_train[i], y_train[i] = load_vector_documents(os.path.join(train_dir, f'{i}.txt'))
     else:
-        data_path = os.path.join(data_dir, f'{task}/public/training_data.txt')
-        if not os.path.exists(data_path):
-            download_data(URL_TRAIN)
-        X, y = load_vector_documents(data_path)
-    return X, y
+        train_data_path = os.path.join(data_dir, f'train/{task}/public/training_data.txt')
+        if not os.path.exists(train_data_path):
+            download_data(URL_TRAIN_DEV, is_train=True)
+        X_train, y_train = load_vector_documents(train_data_path)
 
-def evaluate_model(model, task='T1', result_path=None, data_dir=None):
-    task = task.lower()
-    if task != 't1' and task != 't2' and task != 't3' and task != 't4':
-        raise ValueError(f'Invalid task specification {task.upper()}. T1-T4 are supported')
-    task = task.upper()
-    if data_dir is None:
-        data_dir = os.path.join(str(Path.home()), 'lequa2024_data/')
-    sample_dir = os.path.join(data_dir, f'{task}/public/dev_samples')
-    ground_truth_path = os.path.join(data_dir, f'{task}/public/dev_prevalences.txt')
-    true_prevs = ResultSubmission().load(ground_truth_path)
-    result = ResultSubmission()
+    val_dir = os.path.join(data_dir, f'train/{task}/public/dev_samples')
+    val_gt_path = os.path.join(data_dir, f'train/{task}/public/dev_prevalences.txt')
+    val_gen = gen_load_samples(val_dir, val_gt_path)
+
+    test_dir = os.path.join(data_dir, f'test/{task}/public/test_samples')
+    if not os.path.exists(test_dir):
+        download_data(URL_TEST, is_train=False)
+    test_gen = gen_load_samples(test_dir)
+
+    return X_train, y_train, val_gen, test_gen
+
+def evaluate_model(model, protocol, task, pred_path=None):
+    pred_prevs = ResultSubmission()
+    true_prevs = ResultSubmission()
     print('Starting evaluation ...')
-    for id, sample, _ in tqdm(gen_load_samples(sample_dir, ground_truth_path, return_id=True), total=1000):
+    for id, sample, gt in tqdm(protocol, total=1000):
         preds = model.predict(sample)
-        result.add(id, preds)
-    if result_path is not None and isinstance(result_path, str):
-        result.dump(result_path)
+        pred_prevs.add(id, preds)
+        true_prevs.add(id, gt)
+    if pred_path is not None and isinstance(pred_path, str):
+        pred_prevs.dump(pred_path)
     metrics = metric_map[task]
     errors = []
     print('\nCalculating metrics ...')
     for metric in metrics:
-        eval = evaluate_submission(true_prevs, result, SAMPLE_SIZE[task], metric, average=False)
+        eval = evaluate_submission(true_prevs, pred_prevs, SAMPLE_SIZE[task], metric, average=False)
         errors.append((metric, eval.mean(), eval.std()))
         print(f'm{metric}: {eval.mean():.5f} ~ {eval.std():.5f}')
     return errors

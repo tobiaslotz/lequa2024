@@ -1,19 +1,17 @@
 from lequa2024.utils import load_lequa2024, evaluate_model
-from qunfold import KMM, PACC
+from qunfold import PACC
 from sklearn.ensemble import RandomForestClassifier
 
 if __name__ == '__main__':
-    task = 'T4'
-
-    X, y = load_lequa2024(task=task)
+    task = 'T1'
+    seed = 876
+        
+    X_train, y_train, val_gen, test_gen = load_lequa2024(task=task)
 
     if task == 'T3':
-        X = X.reshape((X.shape[0]*X.shape[1], 256))
-        y = y.flatten()
+        X_train = X_train.reshape((X_train.shape[0]*X_train.shape[1], 256))
+        y_train = y_train.flatten()
 
-    pacc = PACC(classifier=RandomForestClassifier(oob_score=True)).fit(X, y)
-    kmm = KMM().fit(X, y)
+    pacc = PACC(classifier=RandomForestClassifier(oob_score=True, random_state=seed)).fit(X_train, y_train)
     print('Method: PACC')
-    errs_pacc = evaluate_model(pacc, task=task, result_path="results_pacc.txt")
-    print('\n\nMethod: KMM')
-    errs_kmm = evaluate_model(kmm, task=task, result_path="results_kmm.txt")
+    errs_pacc = evaluate_model(pacc, val_gen, task=task)
