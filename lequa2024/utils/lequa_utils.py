@@ -7,11 +7,22 @@ from pathlib import Path
 import numpy as np
 import zipfile
 from quapy.util import download_file_if_not_exists
+from quapy.protocol import AbstractProtocol
 
 metric_map = {'T1' : ['ae', 'rae'],
               'T2' : ['ae', 'rae'],
               'T3' : ['macro-nmd', 'nmd'],
               'T4' : ['ae', 'rae']}
+
+class ValidationSampleFromDir(AbstractProtocol):
+    def __init__(self, path_dir, gt_path) -> None:
+        self.path_dir = path_dir
+        self.true_prevs = ResultSubmission.load(gt_path)
+
+    def __call__(self):
+        for id, prev in self.true_prevs.iterrows():
+            sample, _ = load_vector_documents(os.path.join(self.path_dir, f'{id}.txt'))
+            yield sample, prev
 
 def load_lequa2024(task='T1', data_dir=None):
     task = task.lower()
@@ -52,7 +63,7 @@ def load_lequa2024(task='T1', data_dir=None):
 
     val_dir = os.path.join(data_dir, f'train/{task}/public/dev_samples')
     val_gt_path = os.path.join(data_dir, f'train/{task}/public/dev_prevalences.txt')
-    val_gen = gen_load_samples(val_dir, val_gt_path)
+    val_gen = ValidationSampleFromDir(val_dir, val_gt_path)
 
     test_dir = os.path.join(data_dir, f'test/{task}/public/test_samples')
     if not os.path.exists(test_dir):
@@ -65,7 +76,7 @@ def evaluate_model(model, protocol, task, pred_path=None):
     pred_prevs = ResultSubmission()
     true_prevs = ResultSubmission()
     print('Starting evaluation ...')
-    for id, sample, gt in tqdm(protocol, total=1000):
+    for id, (sample, gt) in enumerate(tqdm(protocol(), total=1000)):
         preds = model.predict(sample)
         pred_prevs.add(id, preds)
         true_prevs.add(id, gt)
