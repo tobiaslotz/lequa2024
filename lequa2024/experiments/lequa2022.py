@@ -111,10 +111,17 @@ def main(
         #     "classifier__class_weight" : ["balanced", None],
         #     # **clf.estimator_grid,
         # }),
-        ("EMaxL", EMaxL(clf.estimator, n_estimators=1, random_state=seed), {
-            "base_estimator__C": clf_grid["transformer__classifier__estimator__C"],
-            # "tau": np.hstack([0, np.logspace(-8, -5, 4)])
+        # ("EMaxL", EMaxL(clf.estimator, n_estimators=1, random_state=seed), {
+        #     "base_estimator__C": clf_grid["transformer__classifier__estimator__C"],
+        #     # "tau": np.hstack([0, np.logspace(-8, -5, 4)])
+        # }),
+        ("SLD", qp.method.aggregative.EMQ(clf.estimator), {
+            "classifier__C": clf_grid["transformer__classifier__estimator__C"],
         }),
+        # ("EMaxL", EMaxL(clf.estimator, n_estimators=1, random_state=seed), {
+        #     "base_estimator__C": clf_grid["transformer__classifier__estimator__C"],
+        #     # "tau": np.hstack([0, np.logspace(-8, -5, 4)])
+        # }),
     ]
     if is_test_run: # use a minimal testing configuration
         clf.set_params(n_estimators = 3, estimator__max_iter = 3)
@@ -126,10 +133,13 @@ def main(
             # ("KDEy", KDEyMLQP(clf.estimator, random_state=seed), {
             #     "bandwidth": np.linspace(0.01, 0.2, 2),
             # }),
-            ("EMaxL", EMaxL(clf.estimator, n_estimators=1, random_state=seed), {
-                "base_estimator__C": clf_grid["transformer__classifier__estimator__C"],
-                # "tau": [0, 0.1]
+            ("SLD", qp.method.aggregative.EMQ(clf.estimator), {
+                "classifier__C": clf_grid["transformer__classifier__estimator__C"],
             }),
+            # ("EMaxL", EMaxL(clf.estimator, n_estimators=1, random_state=seed), {
+            #     "base_estimator__C": clf_grid["transformer__classifier__estimator__C"],
+            #     # "tau": [0, 0.1]
+            # }),
         ]
 
     # iterate over all methods and data sets
