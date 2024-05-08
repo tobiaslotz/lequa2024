@@ -14,13 +14,11 @@ from quapy.method.base import BaseQuantifier
 from qunfold.methods import (
   _CallbackState,
   _check_derivative,
-  _np_softmax,
   _rand_x0,
   DerivativeError,
   Result,
 )
 from qunfold.transformers import _check_y, class_prevalences, ClassTransformer
-from qunfold.losses import _jnp_softmax
 
 def _bw_scott(X):
   sigma = np.std(X, ddof=1)
@@ -257,6 +255,16 @@ def draw_indices(
 
 ######## end of git@github.com:mirkobunse/acspy.git  ########
 
+# generalize our softmax "trick" from l[0]=0 to l[i]=0 with any i
+def _jnp_softmax(l, i):
+  exp_l = jnp.ones(len(l)+1)
+  exp_l = exp_l.at[jnp.setdiff1d(jnp.arange(len(exp_l)), jnp.array([i]))].set(jnp.exp(l))
+  return exp_l / exp_l.sum()
+def _np_softmax(l, i):
+  exp_l = np.ones(len(l)+1)
+  exp_l[np.setdiff1d(np.arange(len(exp_l)), np.array([i]))] = np.exp(l)
+  return exp_l / exp_l.sum()
+
 class EMaxL(BaseQuantifier):
   """Our maximum likelihood fusion ensemble."""
   def __init__(
@@ -268,6 +276,7 @@ class EMaxL(BaseQuantifier):
       solver = "trust-ncg",
       solver_options = {"gtol": 0, "maxiter": 200}, # , "disp": True
       tau = 0,
+      multistart = False,
       ) -> None:
     self.base_estimator = base_estimator
     self.n_estimators = n_estimators
@@ -276,6 +285,7 @@ class EMaxL(BaseQuantifier):
     self.solver = solver
     self.solver_options = solver_options
     self.tau = tau
+    self.multistart = multistart
   def fit(self, X, y=None, n_classes=None):
     if y is None:
       return self.fit(*X.Xy, X.n_classes) # assume that X is a QuaPy LabelledCollection
@@ -309,26 +319,35 @@ class EMaxL(BaseQuantifier):
       pXY_i = estimator.predict_proba(X) / estimator_p_trn # P(X|Y)
       pXY.append(pXY_i / pXY_i.sum(axis=1, keepdims=True))
     pXY = np.concatenate(pXY) # concatenate along the dimension 0
-    def fun(x):
-      p = _jnp_softmax(x)
-      return -jnp.log(pXY @ p).mean() + self.tau * jnp.sum((p[1:] - p[:-1])**2) / 2
-    jac = jax.grad(fun)
-    hess = jax.jacfwd(jac) # forward-mode AD
+    best_result = ( # tuple of loss and result
+      np.inf,
+      Result(np.ones(self.n_classes) / self.n_classes, 0, "unsolved")
+    )
     rng = np.random.RandomState(self.random_state)
-    x0 = _rand_x0(rng, self.n_classes) # random starting point
-    # x0 = jnp.zeros(self.n_classes-1)
-    state = _CallbackState(x0)
-    try:
-      opt = minimize(
-        fun, # JAX function l -> loss
-        x0,
-        jac = _check_derivative(jac, "jac"),
-        hess = _check_derivative(hess, "hess"),
-        method = self.solver,
-        options = self.solver_options,
-        callback = state.callback()
-      )
-    except (DerivativeError, ValueError):
-      traceback.print_exc()
-      opt = state.get_state()
-    return Result(_np_softmax(opt.x), opt.nit, opt.message)
+    dims_0 = np.arange(self.n_classes if self.multistart else 1)
+    for dim_0 in dims_0:
+      def fun(x):
+        p = _jnp_softmax(x, dim_0)
+        return -jnp.log(pXY @ p).mean() + self.tau * jnp.sum((p[1:] - p[:-1])**2) / 2
+      jac = jax.grad(fun)
+      hess = jax.jacfwd(jac) # forward-mode AD
+      x0 = _rand_x0(rng, self.n_classes) # random starting point
+      state = _CallbackState(x0)
+      try:
+        opt = minimize(
+          fun, # JAX function l -> loss
+          x0,
+          jac = _check_derivative(jac, "jac"),
+          hess = _check_derivative(hess, "hess"),
+          method = self.solver,
+          options = self.solver_options,
+          callback = state.callback()
+        )
+      except (DerivativeError, ValueError):
+        traceback.print_exc()
+        opt = state.get_state()
+      if opt.fun < best_result[0]:
+        if dim_0 > 0:
+          print(f"Improved prediction from {best_result[0]} to {opt.fun} (dim_0={dim_0})")
+        best_result = (opt.fun, Result(_np_softmax(opt.x, dim_0), opt.nit, opt.message))
+    return best_result[1]
