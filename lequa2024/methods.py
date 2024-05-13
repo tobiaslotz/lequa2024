@@ -257,6 +257,10 @@ def draw_indices(
 
 ######## end of git@github.com:mirkobunse/acspy.git  ########
 
+class _CallbackStateWithVarArgs(_CallbackState):
+  def callback(self):
+    return lambda xk, *args: self._callback(xk) # add *args to this lambda
+
 class EMaxL(BaseQuantifier):
   """Our maximum likelihood fusion ensemble."""
   def __init__(
@@ -265,8 +269,8 @@ class EMaxL(BaseQuantifier):
       n_estimators = 1,
       random_state = None,
       min_samples_per_class = 5,
-      solver = "trust-ncg",
-      solver_options = {"gtol": 0, "maxiter": 200}, # , "disp": True
+      solver = "trust-constr",
+      solver_options = {"gtol": 0, "xtol": 1e-16, "maxiter": 200}, # , "disp": True
       tau = 0,
       ) -> None:
     self.base_estimator = base_estimator
@@ -317,7 +321,7 @@ class EMaxL(BaseQuantifier):
     rng = np.random.RandomState(self.random_state)
     x0 = _rand_x0(rng, self.n_classes) # random starting point
     # x0 = jnp.zeros(self.n_classes-1)
-    state = _CallbackState(x0)
+    state = _CallbackStateWithVarArgs(x0)
     try:
       opt = minimize(
         fun, # JAX function l -> loss

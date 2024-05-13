@@ -115,13 +115,13 @@ def main(
         #     "base_estimator__C": clf_grid["transformer__classifier__estimator__C"],
         #     # "tau": np.hstack([0, np.logspace(-8, -5, 4)])
         # }),
-        ("SLD", qp.method.aggregative.EMQ(clf.estimator), {
-            "classifier__C": clf_grid["transformer__classifier__estimator__C"],
-        }),
-        # ("EMaxL", EMaxL(clf.estimator, n_estimators=1, random_state=seed), {
-        #     "base_estimator__C": clf_grid["transformer__classifier__estimator__C"],
-        #     # "tau": np.hstack([0, np.logspace(-8, -5, 4)])
+        # ("SLD", qp.method.aggregative.EMQ(clf.estimator), {
+        #     "classifier__C": clf_grid["transformer__classifier__estimator__C"],
         # }),
+        ("EMaxL", EMaxL(clf.estimator, n_estimators=1, random_state=seed), {
+            "base_estimator__C": clf_grid["transformer__classifier__estimator__C"],
+            # "tau": np.hstack([0, np.logspace(-8, -5, 4)])
+        }),
     ]
     if is_test_run: # use a minimal testing configuration
         clf.set_params(n_estimators = 3, estimator__max_iter = 3)
@@ -133,17 +133,17 @@ def main(
             # ("KDEy", KDEyMLQP(clf.estimator, random_state=seed), {
             #     "bandwidth": np.linspace(0.01, 0.2, 2),
             # }),
-            ("SLD", qp.method.aggregative.EMQ(clf.estimator), {
-                "classifier__C": clf_grid["transformer__classifier__estimator__C"],
-            }),
-            # ("EMaxL", EMaxL(clf.estimator, n_estimators=1, random_state=seed), {
-            #     "base_estimator__C": clf_grid["transformer__classifier__estimator__C"],
-            #     # "tau": [0, 0.1]
+            # ("SLD", qp.method.aggregative.EMQ(clf.estimator), {
+            #     "classifier__C": clf_grid["transformer__classifier__estimator__C"],
             # }),
+            ("EMaxL", EMaxL(clf.estimator, n_estimators=1, random_state=seed), {
+                "base_estimator__C": clf_grid["transformer__classifier__estimator__C"],
+                # "tau": [0, 0.1]
+            }),
         ]
 
     # iterate over all methods and data sets
-    data_names = ["lequa2024_val", "lequa2022_val", "lequa2022_tst"]
+    data_names = ["lequa2022_val"] # ["lequa2024_val", "lequa2022_val", "lequa2022_tst"]
     n_trials = len(methods) * len(data_names)
     print(f"Starting {n_trials} trials")
     val_results = []
