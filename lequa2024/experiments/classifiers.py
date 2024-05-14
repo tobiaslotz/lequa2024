@@ -55,19 +55,13 @@ def trial(
             {
                 "activation": ["tanh"],
                 "hidden_layer_sizes": [
-                    (256, 256),
-                    (256,),
-                    (128, 128, 128),
-                    (128, 128),
-                    (128,),
-                    (64, 64, 64),
-                    (64, 64),
-                    (64,),
                     (256, 128, 64),
                     (256, 128),
                     (128, 64),
+                    (256,)
                 ],
-                "learning_rate_init": np.logspace(-3, -5, 7),
+                "learning_rate_init": np.logspace(-3, -4, 5),
+                "alpha": np.logspace(1, -5, 4),
             },
             n_jobs = n_jobs,
             refit = False,
