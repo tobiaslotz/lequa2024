@@ -10,6 +10,7 @@ from qunfold import PACC
 from qunfold.quapy import QuaPyWrapper
 from qunfold.sklearn import CVClassifier
 from sklearn.linear_model import LogisticRegression
+from sklearn.neural_network import MLPClassifier
 from time import time
 from . import MyGridSearchQ
 from ..methods import KDEyMLQP, EMaxL
@@ -92,58 +93,31 @@ def main(
     qp.environ["SAMPLE_SIZE"] = 1000
 
     # configure the quantification methods
-    clf = CVClassifier(
-        LogisticRegression(),
-        n_estimators = 10,
-        random_state = seed,
-    )
-    clf_grid = {
-        "transformer__classifier__estimator__C": np.unique(np.hstack([
-            np.logspace(-2.2, -1.8, 9)[1:-1], # fine
-            np.logspace(-3, -1, 11), # coarse
-        ])),
+    clf = MLPClassifier(random_state=seed, max_iter=2000, early_stopping=True)
+    clf_grid = lambda prefix: {
+        f"{prefix}__activation": ["tanh"],
+        f"{prefix}__hidden_layer_sizes": [
+            # (256, 128, 64),
+            (256, 128),
+            # (128, 64),
+            # (256,)
+        ],
+        f"{prefix}__learning_rate_init": [np.logspace(-3, -4, 3)[1]],
     }
-    methods = [ # (method_name, method, param_grid)
-        # ("PACC", QuaPyWrapper(PACC(clf, seed=seed)), clf_grid),
-        # ("KDEy", KDEyMLQP(clf.estimator, random_state=seed), {
-        #     "bandwidth": np.linspace(0.01, 0.2, 20),
-        #     "classifier__C": np.logspace(-3, 3, 7),
-        #     "classifier__class_weight" : ["balanced", None],
-        #     # **clf.estimator_grid,
-        # }),
-        # ("EMaxL", EMaxL(clf.estimator, n_estimators=1, random_state=seed), {
-        #     "base_estimator__C": clf_grid["transformer__classifier__estimator__C"],
-        #     # "tau": np.hstack([0, np.logspace(-8, -5, 4)])
-        # }),
-        # ("SLD", qp.method.aggregative.EMQ(clf.estimator), {
-        #     "classifier__C": clf_grid["transformer__classifier__estimator__C"],
-        # }),
-        ("EMaxL", EMaxL(clf.estimator, n_estimators=1, random_state=seed), {
-            "base_estimator__C": clf_grid["transformer__classifier__estimator__C"],
-            # "tau": np.hstack([0, np.logspace(-8, -5, 4)])
-        }),
-    ]
     if is_test_run: # use a minimal testing configuration
-        clf.set_params(n_estimators = 3, estimator__max_iter = 3)
-        clf_grid = {
-            "transformer__classifier__estimator__C": [1e0, 1e1],
+        clf = MLPClassifier(random_state=seed, max_iter=3)
+        clf_grid = lambda prefix: {
+            f"{prefix}__activation": ["tanh"],
+            f"{prefix}__hidden_layer_sizes": [(256, 128)],
+            f"{prefix}__learning_rate_init": [np.logspace(-3, -4, 3)[1]],
         }
-        methods = [ # (method_name, method, param_grid)
-            # ("PACC", QuaPyWrapper(PACC(clf, seed=seed)), clf_grid),
-            # ("KDEy", KDEyMLQP(clf.estimator, random_state=seed), {
-            #     "bandwidth": np.linspace(0.01, 0.2, 2),
-            # }),
-            # ("SLD", qp.method.aggregative.EMQ(clf.estimator), {
-            #     "classifier__C": clf_grid["transformer__classifier__estimator__C"],
-            # }),
-            ("EMaxL", EMaxL(clf.estimator, n_estimators=1, random_state=seed), {
-                "base_estimator__C": clf_grid["transformer__classifier__estimator__C"],
-                # "tau": [0, 0.1]
-            }),
-        ]
+    methods = [ # (method_name, method, param_grid)
+        ("SLD", qp.method.aggregative.EMQ(clf), clf_grid("classifier")),
+        # ("EMaxL", EMaxL(clf, n_estimators=1, random_state=seed), clf_grid("base_estimator")),
+    ]
 
     # iterate over all methods and data sets
-    data_names = ["lequa2022_val"] # ["lequa2024_val", "lequa2022_val", "lequa2022_tst"]
+    data_names = ["lequa2024_val"] # ["lequa2024_val", "lequa2022_val", "lequa2022_tst"]
     n_trials = len(methods) * len(data_names)
     print(f"Starting {n_trials} trials")
     val_results = []

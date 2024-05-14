@@ -61,7 +61,6 @@ def trial(
                     (256,)
                 ],
                 "learning_rate_init": np.logspace(-3, -4, 5),
-                "alpha": np.logspace(1, -5, 4),
             },
             n_jobs = n_jobs,
             refit = False,
