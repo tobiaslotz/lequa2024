@@ -51,11 +51,23 @@ def trial(
         )
     elif classifier_name == "mlp":
         cv = GridSearchCV(
-            MLPClassifier(random_state=seed, max_iter=1000, early_stopping=True),
+            MLPClassifier(random_state=seed, max_iter=2000, early_stopping=True),
             {
-                "activation": ["tanh", "relu"],
-                "hidden_layer_sizes": [(100,), (100, 100), (100, 100, 100)],
-                "learning_rate_init": np.logspace(-2, -4, 5),
+                "activation": ["tanh"],
+                "hidden_layer_sizes": [
+                    (256, 256),
+                    (256,),
+                    (128, 128, 128),
+                    (128, 128),
+                    (128,),
+                    (64, 64, 64),
+                    (64, 64),
+                    (64,),
+                    (256, 128, 64),
+                    (256, 128),
+                    (128, 64),
+                ],
+                "learning_rate_init": np.logspace(-1, -5, 9),
             },
             n_jobs = n_jobs,
             refit = False,
@@ -80,8 +92,8 @@ def trial(
             cv = GridSearchCV(
                 MLPClassifier(random_state=seed, max_iter=3),
                 {
-                    "activation": ["relu"],
-                    "hidden_layer_sizes": [(100,)],
+                    "activation": ["tanh"],
+                    "hidden_layer_sizes": [(64,)],
                     "learning_rate_init": np.logspace(-2, -4, 2),
                 },
                 n_jobs = n_jobs,
@@ -116,7 +128,7 @@ def main(
     np.random.seed(seed)
 
     # iterate over all data sets
-    classifier_names = ["lr", "mlp"]
+    classifier_names = ["mlp"] # ["lr", "mlp"]
     data_names = ["lequa2024"] # ["lequa2022", "lequa2024"]
     n_trials = len(classifier_names) * len(data_names)
     print(f"Starting {n_trials} trials")
