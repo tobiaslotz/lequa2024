@@ -29,7 +29,8 @@ setup(
     author_email="tobias.lotz@tu-dortmund.de",
     packages=setuptools.find_packages(),
     install_requires=[
-        "jax[cpu]",
+        "flax >= 0.7.5",
+        "jax",
         "numpy",
         "quapy",
         "qunfold @ git+https://github.com/mirkobunse/qunfold@v0.1.3",

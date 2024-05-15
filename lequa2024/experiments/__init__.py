@@ -155,10 +155,17 @@ class MyGridSearchQ(qp.model_selection.GridSearchQ):
         )
         return scores
 
+    def _prepare_classifier(self, cls_params):
+        if self.verbose:
+            self._sout(f"Training {cls_params}")
+        return qp.model_selection.GridSearchQ._prepare_classifier(self, cls_params)
+
     def _prepare_aggregation(self, args):
         model, predictions, cls_took, cls_params, q_params = args
         model = deepcopy(model)
         params = {**cls_params, **q_params}
+        if self.verbose:
+            self._sout(f"Evaluating {params}")
 
         def job(q_params):
             model.set_params(**q_params)
@@ -177,6 +184,8 @@ class MyGridSearchQ(qp.model_selection.GridSearchQ):
 
     def _prepare_nonaggr_model(self, params):
         model = deepcopy(self.model)
+        if self.verbose:
+            self._sout(f"Evaluating {params}")
 
         def job(params):
             model.set_params(**params)

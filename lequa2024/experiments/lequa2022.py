@@ -9,11 +9,10 @@ from functools import partial
 from qunfold import PACC
 from qunfold.quapy import QuaPyWrapper
 from qunfold.sklearn import CVClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.neural_network import MLPClassifier
 from time import time
 from . import MyGridSearchQ
 from ..methods import KDEyMLQP, EMaxL
+from ..neural import MLPClassifier
 from ..utils import load_lequa2024
 import warnings
 warnings.filterwarnings("ignore")
@@ -93,23 +92,28 @@ def main(
     qp.environ["SAMPLE_SIZE"] = 1000
 
     # configure the quantification methods
-    clf = MLPClassifier(random_state=seed, max_iter=2000, early_stopping=True)
+    clf = MLPClassifier(random_state=seed, verbose=True)
     clf_grid = lambda prefix: {
-        f"{prefix}__activation": ["tanh"],
-        f"{prefix}__hidden_layer_sizes": [
-            # (256, 128, 64),
+        f"{prefix}__n_features": [
+            (256, 128, 64),
             (256, 128),
-            # (128, 64),
-            # (256,)
+            (128, 64),
+            (256,)
         ],
-        f"{prefix}__learning_rate_init": [np.logspace(-3, -4, 3)[1]],
+        f"{prefix}__lr_init": np.logspace(-1, -3, 3),
+        f"{prefix}__batch_size": [128, 256, 512],
     }
     if is_test_run: # use a minimal testing configuration
-        clf = MLPClassifier(random_state=seed, max_iter=3)
+        clf = MLPClassifier(
+            random_state = seed,
+            n_epochs = 3,
+            n_epochs_between_val = 1,
+            verbose = True
+        )
         clf_grid = lambda prefix: {
-            f"{prefix}__activation": ["tanh"],
-            f"{prefix}__hidden_layer_sizes": [(256, 128)],
-            f"{prefix}__learning_rate_init": [np.logspace(-3, -4, 3)[1]],
+            f"{prefix}__n_features": [(256, 128)],
+            f"{prefix}__lr_init": [np.logspace(-3, -4, 3)[1]],
+            f"{prefix}__batch_size": [256],
         }
     methods = [ # (method_name, method, param_grid)
         ("SLD", qp.method.aggregative.EMQ(clf), clf_grid("classifier")),
