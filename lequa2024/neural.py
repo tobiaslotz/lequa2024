@@ -41,6 +41,15 @@ def update_model(state, grads):
 def predict_logits(state, X):
   return state.apply_fn({'params': state.params}, X)
 
+@jax.jit
+def apply_pcc(state, X, p):
+  """Compute gradients and loss for a PCC estimator."""
+  def loss_fn(params):
+    p_est = nn.activation.softmax(state.apply_fn({'params': params}, X), axis=1).mean(axis=0)
+    return jnp.mean((p_est - p)**2) # MSE
+  loss, grads = jax.value_and_grad(loss_fn)(state.params)
+  return grads, loss
+
 class MLPClassifier(BaseEstimator, ClassifierMixin):
   """A simple multi layer perceptron.
   
@@ -58,6 +67,7 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
       momentum = .9,
       random_state = None,
       n_epochs_between_val = 10,
+      pcc_protocol = None,
       verbose = False,
       ):
     self.n_features = n_features
@@ -69,6 +79,7 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
     self.momentum = momentum
     self.random_state = random_state
     self.n_epochs_between_val = n_epochs_between_val
+    self.pcc_protocol = pcc_protocol
     self.verbose = verbose
   def fit(self, X, y):
     self.random_state = np.random.RandomState(self.random_state)
@@ -134,6 +145,17 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
             f"t={progress['time'][-1]:.1f}s"
           )
     self.progress_ = pd.DataFrame(progress)
+
+    # take out an optional PCC-based post-training
+    if self.pcc_protocol is not None:
+      pcc_losses = []
+      for i_sample, (X, p) in enumerate(self.pcc_protocol()):
+        grads, loss, = apply_pcc(self.state, X, p)
+        self.state = update_model(self.state, grads)
+        pcc_losses.append(loss)
+        if self.verbose:
+          print(f"[{i_sample:3d}+] loss_pcc={np.mean(pcc_losses):.5f} t={time() - t_0:.1f}s")
+
     return self
   def predict_proba(self, X):
     return nn.activation.softmax(predict_logits(self.state, X), axis=1)

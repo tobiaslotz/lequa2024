@@ -51,6 +51,7 @@ def trial(
         val_gen.true_prevs.df = val_gen.true_prevs.df[:3] # use only 3 validation samples
 
     # configure and validate the method with all hyper-parameters
+    method.classifier.pcc_protocol = val_gen
     cv = MyGridSearchQ(
         model = method,
         param_grid = param_grid,
