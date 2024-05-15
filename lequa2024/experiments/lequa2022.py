@@ -51,7 +51,7 @@ def trial(
         val_gen.true_prevs.df = val_gen.true_prevs.df[:3] # use only 3 validation samples
 
     # configure and validate the method with all hyper-parameters
-    quapy_method = MyGridSearchQ(
+    cv = MyGridSearchQ(
         model = method,
         param_grid = param_grid,
         protocol = val_gen,
@@ -60,24 +60,29 @@ def trial(
             "mean_logodds_uniformness_ratio_score",
             "mean_probability_uniformness_ratio_score",
         ],
+        store_progress = True,
         refit = False,
         n_jobs = n_jobs,
         raise_errors = True,
         verbose = True,
     ).fit(trn_data)
-    val_results = quapy_method.param_scores_df_
+    val_results = cv.param_scores_df_
     val_results["method"] = method_name
     val_results["data"] = data_name
     print(
         f"VAL [{i_trial+1:02d}/{n_trials:02d}]:",
         datetime.now().strftime('%H:%M:%S'),
-        f"{method_name} validated RAE={quapy_method.best_score_:.4f}",
-        f"{quapy_method.best_params_}",
+        f"{method_name} validated RAE={cv.best_score_:.4f}",
+        f"{cv.best_params_}",
     )
-    return val_results
+    progress = cv.progress_
+    progress["method"] = method_name
+    progress["data"] = data_name
+    return val_results, progress
 
 def main(
         val_path,
+        trn_path,
         n_jobs = 1,
         seed = 867,
         is_test_run = False,
@@ -125,8 +130,9 @@ def main(
     n_trials = len(methods) * len(data_names)
     print(f"Starting {n_trials} trials")
     val_results = []
+    trn_progress = []
     for i_trial, (method, data_name) in enumerate(itertools.product(methods, data_names)):
-        val_results.append(trial(
+        trial_results, trial_progress = trial(
             i_trial,
             *method, # = (method_name, method, param_grid)
             data_name,
@@ -134,14 +140,22 @@ def main(
             seed,
             n_trials,
             is_test_run,
-        ))
+        )
+        val_results.append(trial_results)
+        trn_progress.append(trial_progress)
     val_df = pd.concat(val_results).reset_index(drop=True)
     val_df.to_csv(val_path) # store the results
-    print(f"{val_df.shape[0]} validation results stored at {val_path}")
+    trn_df = pd.concat(trn_progress).reset_index(drop=True)
+    trn_df.to_csv(trn_path)
+    print(
+        f"{val_df.shape[0]} validation results stored at {val_path};",
+        f"training progress stored at {trn_path}",
+    )
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('val_path', type=str, help='path of a validation output *.csv file')
+    parser.add_argument('trn_path', type=str, help='path of a training output *.csv file')
     parser.add_argument('--n_jobs', type=int, default=1, metavar='N',
                         help='number of concurrent jobs or 0 for all processors (default: 1)')
     parser.add_argument('--seed', type=int, default=876, metavar='N',
@@ -150,6 +164,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     main(
         args.val_path,
+        args.trn_path,
         args.n_jobs,
         args.seed,
         args.is_test_run,

@@ -86,6 +86,7 @@ class MyGridSearchQ(qp.model_selection.GridSearchQ):
             protocol,
             error = qp.error.mae,
             extra_metrics = [],
+            store_progress = False,
             refit = True,
             timeout = -1,
             n_jobs = None,
@@ -106,6 +107,7 @@ class MyGridSearchQ(qp.model_selection.GridSearchQ):
             verbose,
         )
         self.extra_metrics = extra_metrics
+        self.store_progress = store_progress
 
     def _compute_scores_aggregative(self, training):
         # break down the set of hyperparameters into two: classifier-specific, quantifier-specific
@@ -196,10 +198,17 @@ class MyGridSearchQ(qp.model_selection.GridSearchQ):
                 error_metric = self.error,
                 extra_metrics = self.extra_metrics,
             )
+            if self.store_progress:
+                progress = model.classifier.progress_
+                progress["params"] = str(params)
+                return scores, progress
             return scores
 
         scores, status, took = self._error_handler(job, params)
-        self._print_status(params, scores[0], status, took)
+        if self.store_progress:
+            self._print_status(params, scores[0][0], status, took)
+        else:
+            self._print_status(params, scores[0], status, took)
         return model, params, scores, status, took
 
     def fit(self, training):
@@ -219,12 +228,15 @@ class MyGridSearchQ(qp.model_selection.GridSearchQ):
             results = self._compute_scores_nonaggregative(training)
 
         df_results = [] # collector for constructing a pd.DataFrame
+        df_progress = []
         self.param_scores_ = {}
         self.extra_scores_ = { extra_metric: {} for extra_metric in self.extra_metrics }
         self.best_score_ = None
         for model, params, scores, status, took in results:
-            evaluation_score = scores[0]
             if status.success():
+                if self.store_progress:
+                    scores, progress = scores
+                evaluation_score = scores[0]
                 if self.best_score_ is None or evaluation_score < self.best_score_:
                     self.best_score_ = evaluation_score
                     self.best_params_ = params
@@ -240,6 +252,7 @@ class MyGridSearchQ(qp.model_selection.GridSearchQ):
                     self.extra_scores_[extra_metric][str(params)] = scores[1+i_extra_metric]
                     df_result[extra_metric] = scores[1+i_extra_metric]
                 df_results.append(df_result)
+                df_progress.append(progress)
             else:
                 self.param_scores_[str(params)] = status.status
                 self.error_collector.append(status)
@@ -249,6 +262,7 @@ class MyGridSearchQ(qp.model_selection.GridSearchQ):
                     **params,
                 })
         self.param_scores_df_ = pd.DataFrame(df_results)
+        self.progress_ = pd.concat(df_progress, ignore_index=True)
 
         tend = time()-tinit
 

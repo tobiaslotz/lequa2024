@@ -3,8 +3,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
-import quapy as qp
-import qunfold
+import pandas as pd
 from flax import linen as nn
 from flax.training import train_state
 from time import time
@@ -99,7 +98,8 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
     )
 
     # take out the training
-    self.progress_ = {
+    progress = {
+      "epoch": [],
       "loss_trn": [],
       "loss_val": [],
       "acc_val": [],
@@ -119,19 +119,21 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
 
       # validation
       if (epoch_index+1) % self.n_epochs_between_val == 0:
-        self.progress_["loss_trn"].append(np.mean(batch_losses))
+        progress["epoch"].append(epoch_index+1)
+        progress["loss_trn"].append(np.mean(batch_losses))
         _, loss_val, acc_val = apply_model(self.state, X_val, y_val) # validate
-        self.progress_["loss_val"].append(loss_val)
-        self.progress_["acc_val"].append(acc_val)
-        self.progress_["time"].append(time() - t_0)
+        progress["loss_val"].append(loss_val)
+        progress["acc_val"].append(acc_val)
+        progress["time"].append(time() - t_0)
         if self.verbose:
           print(
             f"[{epoch_index+1:3d}/{self.n_epochs}]",
-            f"loss_trn={self.progress_['loss_trn'][-1]:.5f}",
-            f"loss_val={self.progress_['loss_val'][-1]:.5f}",
-            f"acc_val={self.progress_['acc_val'][-1]:.5f}",
-            f"t={self.progress_['time'][-1]:.1f}s"
+            f"loss_trn={progress['loss_trn'][-1]:.5f}",
+            f"loss_val={progress['loss_val'][-1]:.5f}",
+            f"acc_val={progress['acc_val'][-1]:.5f}",
+            f"t={progress['time'][-1]:.1f}s"
           )
+    self.progress_ = pd.DataFrame(progress)
     return self
   def predict_proba(self, X):
     return nn.activation.softmax(predict_logits(self.state, X), axis=1)
