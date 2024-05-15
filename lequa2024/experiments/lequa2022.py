@@ -100,13 +100,14 @@ def main(
     clf = MLPClassifier(random_state=seed, verbose=True)
     clf_grid = lambda prefix: {
         f"{prefix}__n_features": [
-            (256, 128, 64),
-            (256, 128),
+            (512,),
+            (256,),
+            (128,),
+            (64,),
             (128, 64),
-            (256,)
         ],
         f"{prefix}__lr_init": np.logspace(-1, -3, 3),
-        f"{prefix}__batch_size": [128, 256, 512],
+        f"{prefix}__batch_size": [64, 128, 256],
     }
     if is_test_run: # use a minimal testing configuration
         clf = MLPClassifier(
@@ -116,9 +117,9 @@ def main(
             verbose = True
         )
         clf_grid = lambda prefix: {
-            f"{prefix}__n_features": [(256, 128)],
-            f"{prefix}__lr_init": [np.logspace(-3, -4, 3)[1]],
-            f"{prefix}__batch_size": [256],
+            f"{prefix}__n_features": [(64,)],
+            f"{prefix}__lr_init": [np.logspace(-1, -3, 3)[1]],
+            f"{prefix}__batch_size": [64],
         }
     methods = [ # (method_name, method, param_grid)
         ("SLD", qp.method.aggregative.EMQ(clf), clf_grid("classifier")),
