@@ -22,9 +22,18 @@ make unittest
 make
 ```
 
+# Slurm
+
 To start a Slurm job on our computer cluster, use
 
 ```sh
 ./srun.sh
 ```
 
+Within the job, you must use the system-wide installation of python / pip to use GPU acceleration.
+
+```sh
+pip install --upgrade pip setuptools wheel
+pip install certifi # bug-fix for quapy v0.1.8
+pip install -e .
+```

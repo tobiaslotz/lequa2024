@@ -3,8 +3,8 @@ set -e
 
 # runtime arguments
 IMAGE="nvcr.io/ml2r/lamarr-dortmund/interactive_jax:23.10-py3"
-RESOURCES="-c 8 --mem=64GB -p GPU1 --gres=gpu:1 --container-image=${IMAGE}"
-NAME="lequa"
+RESOURCES="-c 2 --mem=64GB -p GPU2 --gres=gpu:1 --container-image=${IMAGE}"
+NAME="lequa2"
 while [ "$1" != "" ]; do
 case "$1" in
   -r|--resources) # configure resources
