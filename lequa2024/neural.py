@@ -15,10 +15,11 @@ from sklearn.model_selection import train_test_split
 class MLPModule(nn.Module):
   """A FLAX module for a simple multi layer perceptron."""
   n_features: Sequence[int]
+  activation: Callable
   @nn.compact
   def __call__(self, x):
     for i, n_features in enumerate(self.n_features):
-      x = nn.Dense(n_features)(nn.activation.tanh(x) if i > 0 else x)
+      x = nn.Dense(n_features)(self.activation(x) if i > 0 else x)
     return x
 
 @jax.jit
@@ -56,6 +57,7 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
       lr_init = 1e-2,
       lr_steps = {200: .5, 400: .5, 600: .5, 800: .5}, # epoch index -> shrinkage factor
       momentum = .9,
+      activation = "tanh",
       random_state = None,
       n_epochs_between_val = 10,
       verbose = False,
@@ -67,6 +69,7 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
     self.lr_init = lr_init
     self.lr_steps = lr_steps
     self.momentum = momentum
+    self.activation = activation
     self.random_state = random_state
     self.n_epochs_between_val = n_epochs_between_val
     self.verbose = verbose
@@ -81,7 +84,15 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
     )
 
     # instantiate the model
-    module = MLPModule(np.concatenate((self.n_features, [len(np.unique(y))])))
+    if self.activation == "tanh":
+      activation = nn.activation.tanh
+    elif self.activation == "sigmoid":
+      activation = nn.activation.sigmoid
+    elif self.activation == "relu":
+      activation = nn.activation.relu
+    else:
+      raise ValueError(f"Unknown activation={self.activation}")
+    module = MLPModule(np.concatenate((self.n_features, [len(np.unique(y))])), activation)
     self.state = train_state.TrainState.create(
       apply_fn = module.apply,
       params = module.init( # initialize parameters
