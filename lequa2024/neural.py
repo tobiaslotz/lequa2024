@@ -51,11 +51,11 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
   def __init__(
       self,
       n_features = (64,),
-      n_epochs = 1000,
+      n_epochs = 2000,
       val_size = .1,
       batch_size = 256,
       lr_init = 1e-2,
-      lr_steps = {200: .5, 400: .5, 600: .5, 800: .5}, # epoch index -> shrinkage factor
+      lr_steps = {250: .5, 500: .5, 750: .5, 1000: .5, 1250: .5, 1500: .5, 1750: .5},
       momentum = .9,
       activation = "tanh",
       random_state = None,

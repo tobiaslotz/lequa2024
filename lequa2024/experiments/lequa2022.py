@@ -104,7 +104,7 @@ def main(
         ],
         f"{prefix}__lr_init": 0.1,
         f"{prefix}__batch_size": [128],
-        f"{prefix}__activation": ["sigmoid", "relu"],
+        f"{prefix}__activation": ["tanh", "sigmoid", "relu"],
     }
     if is_test_run: # use a minimal testing configuration
         clf = MLPClassifier(
@@ -117,7 +117,7 @@ def main(
             f"{prefix}__n_features": [(64,)],
             f"{prefix}__lr_init": [np.logspace(-1, -3, 3)[1]],
             f"{prefix}__batch_size": [64],
-            f"{prefix}__activation": ["sigmoid", "relu"],
+            f"{prefix}__activation": ["tanh", "sigmoid", "relu"],
         }
     methods = [ # (method_name, method, param_grid)
         ("SLD", qp.method.aggregative.EMQ(clf), clf_grid("classifier")),
