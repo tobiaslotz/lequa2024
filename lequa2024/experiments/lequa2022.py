@@ -14,7 +14,7 @@ from sklearn.neural_network import MLPClassifier
 from time import time
 from . import MyGridSearchQ
 from ..methods import KDEyMLQP, EMaxL
-from ..utils import load_lequa2024
+from ..utils import load_lequa2024, evaluate_model
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -75,6 +75,8 @@ def trial(
         f"{method_name} validated RAE={quapy_method.best_score_:.4f}",
         f"{quapy_method.best_params_}",
     )
+    _, _, val_gen, _ = load_lequa2024(task="T2") # like T1B from 2022
+    evaluate_model(quapy_method, val_gen, "T2", "SLD_val_preds_lequa2024.csv")
     return val_results
 
 def main(
@@ -93,7 +95,12 @@ def main(
     qp.environ["SAMPLE_SIZE"] = 1000
 
     # configure the quantification methods
-    clf = MLPClassifier(random_state=seed, max_iter=2000, early_stopping=True)
+    clf_mlp = MLPClassifier(random_state=seed, max_iter=2000, early_stopping=True)
+    clf_lr = LogisticRegression()
+    clf_grid_lr = {
+        "classifier__C" : np.logspace(-3, 3, 7),
+        "classifier__class_weight" : ['balanced', None],
+    }
     clf_grid = lambda prefix: {
         f"{prefix}__activation": ["tanh"],
         f"{prefix}__hidden_layer_sizes": [
@@ -105,14 +112,15 @@ def main(
         f"{prefix}__learning_rate_init": [np.logspace(-3, -4, 3)[1]],
     }
     if is_test_run: # use a minimal testing configuration
-        clf = MLPClassifier(random_state=seed, max_iter=3)
+        clf_mlp = MLPClassifier(random_state=seed, max_iter=3)
         clf_grid = lambda prefix: {
             f"{prefix}__activation": ["tanh"],
             f"{prefix}__hidden_layer_sizes": [(256, 128)],
             f"{prefix}__learning_rate_init": [np.logspace(-3, -4, 3)[1]],
         }
     methods = [ # (method_name, method, param_grid)
-        ("SLD", qp.method.aggregative.EMQ(clf), clf_grid("classifier")),
+        #("SLD", qp.method.aggregative.EMQ(clf_mlp), clf_grid("classifier")),
+        ("SLD", qp.method.aggregative.EMQ(clf_lr), clf_grid_lr),
         # ("EMaxL", EMaxL(clf, n_estimators=1, random_state=seed), clf_grid("base_estimator")),
     ]
 
