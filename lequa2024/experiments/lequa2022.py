@@ -102,7 +102,7 @@ def main(
         f"{prefix}__n_features": [
             (256,),
         ],
-        f"{prefix}__lr_init": 0.1,
+        f"{prefix}__lr_init": [0.1],
         f"{prefix}__batch_size": [128],
         f"{prefix}__activation": ["tanh", "sigmoid", "relu"],
     }
