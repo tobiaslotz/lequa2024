@@ -59,12 +59,12 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
   """
   def __init__(
       self,
-      n_features = (64,),
-      n_epochs = 2000,
+      n_features = (256,),
+      n_epochs = 500,
       val_size = .1,
-      batch_size = 256,
-      lr_init = 1e-2,
-      lr_steps = {250: .5, 500: .5, 750: .5, 1000: .5, 1250: .5, 1500: .5, 1750: .5},
+      batch_size = 128,
+      lr_init = 1e-3,
+      lr_steps = {100: .5, 200: .5, 300: .5, 400: .5},
       momentum = .9,
       activation = "tanh",
       random_state = None,
@@ -93,6 +93,7 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
       stratify = y,
       random_state = self.random_state,
     )
+    n_batches_per_epoch = len(y_trn) // self.batch_size
 
     # instantiate the model
     if self.activation == "tanh":
@@ -113,7 +114,10 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
       tx = optax.sgd(
         learning_rate = optax.piecewise_constant_schedule(
           init_value = self.lr_init,
-          boundaries_and_scales = self.lr_steps,
+          boundaries_and_scales = { # LR epochs to LR steps
+            k * n_batches_per_epoch: v
+            for k, v in self.lr_steps.items()
+          },
         ),
         momentum = self.momentum
       )
@@ -133,7 +137,7 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
       i_epoch = np.random.default_rng(epoch_index).permutation(len(y_trn)) # shuffle
 
       # mini-batch training
-      for batch_index in range(len(y_trn) // self.batch_size):
+      for batch_index in range(n_batches_per_epoch):
         i_batch = i_epoch[batch_index * self.batch_size:(batch_index+1) * self.batch_size]
         grads, loss, _ = apply_model(self.state, X_trn[i_batch], y_trn[i_batch])
         self.state = update_model(self.state, grads) # update the training state

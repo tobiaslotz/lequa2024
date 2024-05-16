@@ -101,9 +101,13 @@ def main(
     clf = MLPClassifier(random_state=seed, verbose=True)
     clf_grid = lambda prefix: {
         f"{prefix}__n_features": [
+            (256, 256),
+            (128, 128),
+            (512,),
             (256,),
+            (128,),
         ],
-        f"{prefix}__lr_init": [0.01],
+        f"{prefix}__lr_init": np.logspace(-1, -3, 3),
         f"{prefix}__batch_size": [128],
         f"{prefix}__activation": ["tanh", "sigmoid", "relu"],
     }
