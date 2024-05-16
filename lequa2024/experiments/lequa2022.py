@@ -76,7 +76,7 @@ def trial(
         f"{quapy_method.best_params_}",
     )
     _, _, val_gen, _ = load_lequa2024(task="T2") # like T1B from 2022
-    evaluate_model(quapy_method, val_gen, "T2", "SLD_val_preds_lequa2024.csv")
+    evaluate_model(quapy_method.best_model(), val_gen, "T2", "SLD_val_preds_lequa2024.csv")
     return val_results
 
 def main(
