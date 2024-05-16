@@ -102,7 +102,7 @@ def main(
         f"{prefix}__n_features": [
             (256,),
         ],
-        f"{prefix}__lr_init": [0.1],
+        f"{prefix}__lr_init": [0.01],
         f"{prefix}__batch_size": [128],
         f"{prefix}__activation": ["tanh", "sigmoid", "relu"],
     }
@@ -115,7 +115,7 @@ def main(
         )
         clf_grid = lambda prefix: {
             f"{prefix}__n_features": [(64,)],
-            f"{prefix}__lr_init": [np.logspace(-1, -3, 3)[1]],
+            f"{prefix}__lr_init": [0.01],
             f"{prefix}__batch_size": [64],
             f"{prefix}__activation": ["tanh", "sigmoid", "relu"],
         }
