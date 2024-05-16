@@ -47,7 +47,7 @@ def trial(
     else:
         raise ValueError(f"Unknown data_name={data_name}")
     if is_test_run: # use a minimal testing configuration
-        trn_data = trn_data.split_stratified(3000, random_state=seed)[0] # subsample
+        trn_data = trn_data.split_stratified(5000, random_state=seed)[0] # subsample
         val_gen.true_prevs.df = val_gen.true_prevs.df[:3] # use only 3 validation samples
 
     # configure and validate the method with all hyper-parameters
@@ -60,7 +60,7 @@ def trial(
             "mean_logodds_uniformness_ratio_score",
             "mean_probability_uniformness_ratio_score",
         ],
-        store_progress = True,
+        store_progress = False,
         refit = False,
         n_jobs = n_jobs,
         raise_errors = True,
@@ -75,9 +75,10 @@ def trial(
         f"{method_name} validated RAE={cv.best_score_:.4f}",
         f"{cv.best_params_}",
     )
-    progress = cv.progress_
-    progress["method"] = method_name
-    progress["data"] = data_name
+    # progress = cv.progress_
+    # progress["method"] = method_name
+    # progress["data"] = data_name
+    progress = None
     return val_results, progress
 
 def main(
@@ -101,14 +102,13 @@ def main(
     clf_grid = lambda prefix: {
         f"{prefix}__n_features": [
             (256, 256),
-            (128, 128),
             (512,),
             (256,),
             (128,),
         ],
-        f"{prefix}__lr_init": np.logspace(-1, -3, 3),
+        f"{prefix}__lr_init": [0.01], # np.logspace(-1, -3, 3),
         f"{prefix}__batch_size": [128],
-        f"{prefix}__activation": ["tanh", "sigmoid", "relu"],
+        f"{prefix}__activation": ["tanh"],
     }
     if is_test_run: # use a minimal testing configuration
         clf = MLPClassifier(
@@ -121,10 +121,22 @@ def main(
             f"{prefix}__n_features": [(64,)],
             f"{prefix}__lr_init": [0.01],
             f"{prefix}__batch_size": [64],
-            f"{prefix}__activation": ["tanh", "sigmoid", "relu"],
+            f"{prefix}__activation": ["tanh"],
         }
     methods = [ # (method_name, method, param_grid)
-        ("SLD", qp.method.aggregative.EMQ(clf), clf_grid("classifier")),
+        (
+            "PACC",
+            QuaPyWrapper(PACC(
+                CVClassifier(
+                    clf,
+                    n_estimators = 3 if is_test_run else 10,
+                    random_state = seed
+                ),
+                seed = seed
+            )),
+            clf_grid("transformer__classifier__estimator")
+        ),
+        # ("SLD", qp.method.aggregative.EMQ(clf), clf_grid("classifier")),
         # ("EMaxL", EMaxL(clf, n_estimators=1, random_state=seed), clf_grid("base_estimator")),
     ]
 
@@ -148,11 +160,11 @@ def main(
         trn_progress.append(trial_progress)
     val_df = pd.concat(val_results).reset_index(drop=True)
     val_df.to_csv(val_path) # store the results
-    trn_df = pd.concat(trn_progress).reset_index(drop=True)
-    trn_df.to_csv(trn_path)
+    # trn_df = pd.concat(trn_progress).reset_index(drop=True)
+    # trn_df.to_csv(trn_path)
     print(
         f"{val_df.shape[0]} validation results stored at {val_path};",
-        f"training progress stored at {trn_path}",
+        # f"training progress stored at {trn_path}",
     )
 
 if __name__ == '__main__':

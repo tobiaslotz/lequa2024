@@ -75,6 +75,7 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
     self.verbose = verbose
   def fit(self, X, y):
     self.random_state = np.random.RandomState(self.random_state)
+    self.classes_ = np.unique(y)
     X_trn, X_val, y_trn, y_val = train_test_split( # split a validation set
       X,
       y,
