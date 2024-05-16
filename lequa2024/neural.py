@@ -44,10 +44,15 @@ def predict_logits(state, X):
 
 @jax.jit
 def apply_pcc(state, X, p):
-  """Compute gradients and loss for a PCC estimator."""
+  """Compute gradients and loss for a PCC estimator.
+
+  Args:
+      state: The state for which to compute the gradients and loss.
+      X: Samples of shape (n_samples, n_items_per_sample, n_features).
+      p: Prevalence vectors of shape (n_samples, n_classes)."""
   def loss_fn(params):
-    p_est = nn.activation.softmax(state.apply_fn({'params': params}, X), axis=1).mean(axis=0)
-    return jnp.mean((p_est - p)**2) # MSE
+    p_est = nn.activation.softmax(state.apply_fn({'params': params}, X), axis=2).mean(axis=1)
+    return jnp.sum((p_est - p)**2, axis=1).mean() # MSE
   loss, grads = jax.value_and_grad(loss_fn)(state.params)
   return grads, loss
 
@@ -60,7 +65,7 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
   def __init__(
       self,
       n_features = (256,),
-      n_epochs = 500,
+      n_epochs = 100,
       val_size = .1,
       batch_size = 128,
       lr_init = 1e-3,
@@ -69,7 +74,7 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
       activation = "tanh",
       random_state = None,
       n_epochs_between_val = 10,
-      pcc_protocol = None,
+      set_training = None,
       verbose = False,
       ):
     self.n_features = n_features
@@ -82,7 +87,7 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
     self.activation = activation
     self.random_state = random_state
     self.n_epochs_between_val = n_epochs_between_val
-    self.pcc_protocol = pcc_protocol
+    self.set_training = set_training
     self.verbose = verbose
   def fit(self, X, y):
     self.random_state = np.random.RandomState(self.random_state)
@@ -123,6 +128,8 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
       )
     )
 
+    # TODO update boundaries_and_scales with extra steps due to set_training
+
     # take out the training
     progress = {
       "epoch": [],
@@ -143,6 +150,10 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
         self.state = update_model(self.state, grads) # update the training state
         batch_losses.append(loss)
 
+      # take out an optional PCC-based post-training
+      if self.set_training is not None:
+        self.state = self.set_training.update_state(self.state, epoch_index, self.verbose)
+
       # validation
       if (epoch_index+1) % self.n_epochs_between_val == 0:
         progress["epoch"].append(epoch_index+1)
@@ -161,18 +172,44 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
           )
     self.progress_ = pd.DataFrame(progress)
 
-    # take out an optional PCC-based post-training
-    if self.pcc_protocol is not None:
-      pcc_losses = []
-      for i_sample, (X, p) in enumerate(self.pcc_protocol()):
-        grads, loss, = apply_pcc(self.state, X, p)
-        self.state = update_model(self.state, grads)
-        pcc_losses.append(loss)
-        if self.verbose:
-          print(f"[{i_sample:3d}+] loss_pcc={np.mean(pcc_losses):.5f} t={time() - t_0:.1f}s")
-
     return self
   def predict_proba(self, X):
     return nn.activation.softmax(predict_logits(self.state, X), axis=1)
   def predict(self, X):
     return predict_logits(self.state, X).argmax(axis=1)
+
+class SetTraining():
+  def __init__(self,
+      X,
+      p,
+      epochs = [0], # epoch numbers where not to skip the SetTraining
+      batch_size = 20,
+      n_set_epochs = 10,
+      ):
+    self.X = X
+    self.p = p
+    self.epochs = epochs
+    self.batch_size = batch_size
+    self.n_set_epochs = n_set_epochs
+  def update_state(self, state, epoch_index, verbose=False, return_progress=False):
+    progress = None # TODO record progress
+    if epoch_index in self.epochs: # otherwise, skip the SetTraining
+      for set_epoch_index in range(self.n_set_epochs):
+        batch_losses = []
+        i_epoch = np.random.default_rng(set_epoch_index).permutation(len(self.p)) # shuffle
+        for batch_index in range(len(self.p) // self.batch_size):
+          i_batch = i_epoch[batch_index * self.batch_size:(batch_index+1) * self.batch_size]
+          grads, loss, = apply_pcc(state, self.X[i_batch], self.p[i_batch])
+          state = update_model(state, grads)
+          batch_losses.append(loss)
+        if verbose:
+          print(
+            f"[{set_epoch_index+1:d}+]",
+            f"loss_pcc={np.mean(batch_losses):.5f}",
+            # f"t={time() - t_0:.1f}s"
+          )
+    if return_progress:
+      return state, progress
+    return state
+  def get_n_steps_per_update(self):
+    return self.n_set_epochs * (len(self.p) // self.batch_size)

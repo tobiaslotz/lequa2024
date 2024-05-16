@@ -12,7 +12,7 @@ from qunfold.sklearn import CVClassifier
 from time import time
 from . import MyGridSearchQ
 from ..methods import KDEyMLQP, EMaxL
-from ..neural import MLPClassifier
+from ..neural import MLPClassifier, SetTraining
 from ..utils import load_lequa2024
 import warnings
 warnings.filterwarnings("ignore")
@@ -51,7 +51,15 @@ def trial(
         val_gen.true_prevs.df = val_gen.true_prevs.df[:3] # use only 3 validation samples
 
     # configure and validate the method with all hyper-parameters
-    method.classifier.pcc_protocol = val_gen
+    print("Storing all validaton data for the set-based training")
+    val_X = []
+    val_p = []
+    for val_gen_X, val_gen_p in val_gen():
+        val_X.append(val_gen_X)
+        val_p.append(val_gen_p)
+    val_X = np.array(val_X) # concatenate along a newly introduced first dimension
+    val_p = np.array(val_p)
+    method.classifier.set_training = SetTraining(val_X, val_p)
     cv = MyGridSearchQ(
         model = method,
         param_grid = param_grid,
@@ -101,15 +109,15 @@ def main(
     clf = MLPClassifier(random_state=seed, verbose=True)
     clf_grid = lambda prefix: {
         f"{prefix}__n_features": [
-            (256, 256),
-            (128, 128),
-            (512,),
+            # (256, 256),
+            # (128, 128),
+            # (512,),
             (256,),
-            (128,),
+            # (128,),
         ],
-        f"{prefix}__lr_init": np.logspace(-1, -3, 3),
+        f"{prefix}__lr_init": [0.01], # np.logspace(-1, -3, 3),
         f"{prefix}__batch_size": [128],
-        f"{prefix}__activation": ["tanh", "sigmoid", "relu"],
+        f"{prefix}__activation": ["tanh"], # , "sigmoid", "relu"
     }
     if is_test_run: # use a minimal testing configuration
         clf = MLPClassifier(
