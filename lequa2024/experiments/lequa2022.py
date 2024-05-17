@@ -10,7 +10,6 @@ from qunfold import PACC
 from qunfold.quapy import QuaPyWrapper
 from qunfold.sklearn import CVClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.neural_network import MLPClassifier
 from time import time
 from . import MyGridSearchQ
 from ..methods import KDEyMLQP, EMaxL
@@ -93,27 +92,29 @@ def main(
     qp.environ["SAMPLE_SIZE"] = 1000
 
     # configure the quantification methods
-    clf = MLPClassifier(random_state=seed, max_iter=2000, early_stopping=True)
+    clf = LogisticRegression(max_iter=3000, tol=1e-6, random_state=seed)
     clf_grid = lambda prefix: {
-        f"{prefix}__activation": ["tanh"],
-        f"{prefix}__hidden_layer_sizes": [
-            # (256, 128, 64),
-            (256, 128),
-            # (128, 64),
-            # (256,)
-        ],
-        f"{prefix}__learning_rate_init": [np.logspace(-3, -4, 3)[1]],
+        f"{prefix}__C": np.logspace(-4, 0, 9),
+        f"{prefix}__class_weight": [None, "balanced"],
     }
     if is_test_run: # use a minimal testing configuration
-        clf = MLPClassifier(random_state=seed, max_iter=3)
+        clf = LogisticRegression(max_iter=3, random_state=seed)
         clf_grid = lambda prefix: {
-            f"{prefix}__activation": ["tanh"],
-            f"{prefix}__hidden_layer_sizes": [(256, 128)],
-            f"{prefix}__learning_rate_init": [np.logspace(-3, -4, 3)[1]],
-        }
+            f"{prefix}__C": [0.01],
+            f"{prefix}__class_weight": [None, "balanced"],
+    }
     methods = [ # (method_name, method, param_grid)
+        (
+            "PACC",
+            QuaPyWrapper(PACC(CVClassifier(
+                clf,
+                n_estimators = 3 if is_test_run else 10,
+                random_state = seed,
+            ))),
+            clf_grid("transformer__classifier__estimator")
+        ),
         ("SLD", qp.method.aggregative.EMQ(clf), clf_grid("classifier")),
-        # ("EMaxL", EMaxL(clf, n_estimators=1, random_state=seed), clf_grid("base_estimator")),
+        ("EMaxL", EMaxL(clf, n_estimators=1, random_state=seed), clf_grid("base_estimator")),
     ]
 
     # iterate over all methods and data sets
