@@ -102,6 +102,8 @@ def main(
             f"{prefix}__C": [1.0],
     }
     methods = [ # (method_name, method, param_grid)
+        ("SLD", qp.method.aggregative.EMQ(clf), clf_grid("classifier")),
+        ("EMaxL", EMaxL(clf, n_estimators=1, random_state=seed), clf_grid("base_estimator")),
         (
             "PACC",
             QuaPyWrapper(PACC(CVClassifier(
@@ -111,8 +113,6 @@ def main(
             ))),
             clf_grid("transformer__classifier__estimator")
         ),
-        ("SLD", qp.method.aggregative.EMQ(clf), clf_grid("classifier")),
-        ("EMaxL", EMaxL(clf, n_estimators=1, random_state=seed), clf_grid("base_estimator")),
     ]
 
     # iterate over all methods and data sets
