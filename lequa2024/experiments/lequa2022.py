@@ -94,7 +94,7 @@ def main(
     # configure the quantification methods
     clf = LogisticRegression(max_iter=3000, tol=1e-6, random_state=seed)
     clf_grid = lambda prefix: {
-        f"{prefix}__C": np.logspace(-1, 3, 9),
+        f"{prefix}__C": np.logspace(-1, 2, 10),
     }
     if is_test_run: # use a minimal testing configuration
         clf = LogisticRegression(max_iter=3, random_state=seed)
@@ -102,17 +102,21 @@ def main(
             f"{prefix}__C": [1.0],
     }
     methods = [ # (method_name, method, param_grid)
-        ("SLD", qp.method.aggregative.EMQ(clf), clf_grid("classifier")),
-        ("EMaxL", EMaxL(clf, n_estimators=1, random_state=seed), clf_grid("base_estimator")),
+        # ("SLD", qp.method.aggregative.EMQ(clf), clf_grid("classifier")),
         (
-            "PACC",
-            QuaPyWrapper(PACC(CVClassifier(
-                clf,
-                n_estimators = 3 if is_test_run else 10,
-                random_state = seed,
-            ))),
-            clf_grid("transformer__classifier__estimator")
+            "EMaxL",
+            EMaxL(clf, n_estimators=1, random_state=seed),
+            {"tau": np.logspace(-1, -5, 3)} | clf_grid("base_estimator")
         ),
+        # (
+        #     "PACC",
+        #     QuaPyWrapper(PACC(CVClassifier(
+        #         clf,
+        #         n_estimators = 3 if is_test_run else 10,
+        #         random_state = seed,
+        #     ))),
+        #     clf_grid("transformer__classifier__estimator")
+        # ),
     ]
 
     # iterate over all methods and data sets
