@@ -24,7 +24,7 @@ class MLPModule(nn.Module):
 
 @jax.jit
 def apply_model(state, X, y, w):
-  """Compute gradients, loss and accuracy."""
+  """Compute gradients, loss and accuracy, all weighted by w."""
   def loss_fn(params):
     logits = state.apply_fn({'params': params}, X)
     loss = jnp.average(
@@ -33,7 +33,7 @@ def apply_model(state, X, y, w):
     )
     return loss, logits
   (loss, logits), grads = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
-  accuracy = jnp.mean(jnp.argmax(logits, -1) == y)
+  accuracy = jnp.average(jnp.argmax(logits, -1) == y, weights=w)
   return grads, loss, accuracy
 
 @jax.jit
