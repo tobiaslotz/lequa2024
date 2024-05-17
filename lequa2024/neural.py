@@ -23,11 +23,14 @@ class MLPModule(nn.Module):
     return x
 
 @jax.jit
-def apply_model(state, X, y):
+def apply_model(state, X, y, w):
   """Compute gradients, loss and accuracy."""
   def loss_fn(params):
     logits = state.apply_fn({'params': params}, X)
-    loss = optax.softmax_cross_entropy_with_integer_labels(logits=logits, labels=y).mean()
+    loss = jnp.average(
+      optax.softmax_cross_entropy_with_integer_labels(logits=logits, labels=y),
+      weights = w
+    )
     return loss, logits
   (loss, logits), grads = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
   accuracy = jnp.mean(jnp.argmax(logits, -1) == y)
@@ -58,6 +61,7 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
       lr_steps = {100: .5, 200: .5, 300: .5, 400: .5},
       momentum = .9,
       activation = "tanh",
+      class_weight = None,
       random_state = None,
       n_epochs_between_val = 10,
       verbose = False,
@@ -70,15 +74,22 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
     self.lr_steps = lr_steps
     self.momentum = momentum
     self.activation = activation
+    self.class_weight = class_weight
     self.random_state = random_state
     self.n_epochs_between_val = n_epochs_between_val
     self.verbose = verbose
-  def fit(self, X, y):
+  def fit(self, X, y, sample_weight=None):
     self.random_state = np.random.RandomState(self.random_state)
     self.classes_ = np.unique(y)
-    X_trn, X_val, y_trn, y_val = train_test_split( # split a validation set
+    if sample_weight is None:
+      sample_weight = { # sample_weight = class_weight[y]
+        None: jnp.ones(len(self.classes_)),
+        "balanced": 1 / np.unique(y, return_counts=True)[1]
+      }.get(self.class_weight, self.class_weight)[y]
+    X_trn, X_val, y_trn, y_val, w_trn, w_val = train_test_split( # split a validation set
       X,
       y,
+      sample_weight,
       test_size = self.val_size,
       stratify = y,
       random_state = self.random_state,
@@ -129,7 +140,12 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
       # mini-batch training
       for batch_index in range(n_batches_per_epoch):
         i_batch = i_epoch[batch_index * self.batch_size:(batch_index+1) * self.batch_size]
-        grads, loss, _ = apply_model(self.state, X_trn[i_batch], y_trn[i_batch])
+        grads, loss, _ = apply_model(
+          self.state,
+          X_trn[i_batch],
+          y_trn[i_batch],
+          w_trn[i_batch]
+        )
         self.state = update_model(self.state, grads) # update the training state
         batch_losses.append(loss)
 
@@ -137,7 +153,7 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
       if (epoch_index+1) % self.n_epochs_between_val == 0:
         progress["epoch"].append(epoch_index+1)
         progress["loss_trn"].append(np.mean(batch_losses))
-        _, loss_val, acc_val = apply_model(self.state, X_val, y_val) # validate
+        _, loss_val, acc_val = apply_model(self.state, X_val, y_val, w_val) # validate
         progress["loss_val"].append(loss_val)
         progress["acc_val"].append(acc_val)
         progress["time"].append(time() - t_0)

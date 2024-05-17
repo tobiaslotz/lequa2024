@@ -101,14 +101,15 @@ def main(
     clf = MLPClassifier(random_state=seed, verbose=True)
     clf_grid = lambda prefix: {
         f"{prefix}__n_features": [
-            (256, 256),
+            # (256, 256),
             (512,),
             (256,),
-            (128,),
+            # (128,),
         ],
         f"{prefix}__lr_init": [0.01], # np.logspace(-1, -3, 3),
         f"{prefix}__batch_size": [128],
         f"{prefix}__activation": ["tanh"],
+        f"{prefix}__class_weight": ["balanced", None],
     }
     if is_test_run: # use a minimal testing configuration
         clf = MLPClassifier(
@@ -122,6 +123,7 @@ def main(
             f"{prefix}__lr_init": [0.01],
             f"{prefix}__batch_size": [64],
             f"{prefix}__activation": ["tanh"],
+            f"{prefix}__class_weight": ["balanced", None],
         }
     methods = [ # (method_name, method, param_grid)
         (
@@ -129,7 +131,7 @@ def main(
             QuaPyWrapper(PACC(
                 CVClassifier(
                     clf,
-                    n_estimators = 3 if is_test_run else 10,
+                    n_estimators = 3 if is_test_run else 5,
                     random_state = seed
                 ),
                 seed = seed
