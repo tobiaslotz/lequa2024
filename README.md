@@ -1,4 +1,4 @@
-## LeQua2024 Competition
+# LeQua2024 Competition
 
 Repository that contains our submission to the LeQua2024 competition.
 
@@ -22,9 +22,19 @@ make unittest
 make
 ```
 
+## Slurm
+
 To start a Slurm job on our computer cluster, use
 
 ```sh
 ./srun.sh
 ```
 
+This job must use the system installation of python and pip; it must not use virtual environments as above.
+
+To trick the `Makefile` and the above installation commands into using the system installation instead of a virtual environment, proceed as follows:
+
+```sh
+mkdir -p venv/bin
+ln -s $(which pip) $(which python) venv/bin
+```
