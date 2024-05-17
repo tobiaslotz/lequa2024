@@ -94,14 +94,12 @@ def main(
     # configure the quantification methods
     clf = LogisticRegression(max_iter=3000, tol=1e-6, random_state=seed)
     clf_grid = lambda prefix: {
-        f"{prefix}__C": np.logspace(-4, 0, 9),
-        f"{prefix}__class_weight": [None, "balanced"],
+        f"{prefix}__C": np.logspace(-1, 3, 9),
     }
     if is_test_run: # use a minimal testing configuration
         clf = LogisticRegression(max_iter=3, random_state=seed)
         clf_grid = lambda prefix: {
-            f"{prefix}__C": [0.01],
-            f"{prefix}__class_weight": [None, "balanced"],
+            f"{prefix}__C": [1.0],
     }
     methods = [ # (method_name, method, param_grid)
         (
