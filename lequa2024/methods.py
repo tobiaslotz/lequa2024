@@ -269,8 +269,8 @@ class EMaxL(BaseQuantifier):
       n_estimators = 1,
       random_state = None,
       min_samples_per_class = 5,
-      solver = "trust-constr",
-      solver_options = {"gtol": 0, "xtol": 1e-16, "maxiter": 200}, # , "disp": True
+      solver = "trust-ncg",
+      solver_options = {"gtol": 0, "xtol": 1e-16, "maxiter": 1000}, # , "disp": True
       tau = 0,
       ) -> None:
     self.base_estimator = base_estimator
