@@ -75,9 +75,16 @@ def load_lequa2024(task='T1', data_dir=None):
 def evaluate_model(model, protocol, task, pred_path=None):
     pred_prevs = ResultSubmission()
     true_prevs = ResultSubmission()
+    if hasattr(model, 'predict'):
+        pred_func = getattr(model, 'predict')
+    elif hasattr(model, 'quantify'):
+        pred_func = getattr(model, 'quantify')
+    else:
+        raise ValueError("Unknown prediction function.")
+    
     print('Starting evaluation ...')
     for id, (sample, gt) in enumerate(tqdm(protocol(), total=1000)):
-        preds = model.predict(sample)
+        preds = pred_func(sample)
         pred_prevs.add(id, preds)
         true_prevs.add(id, gt)
     if pred_path is not None and isinstance(pred_path, str):
