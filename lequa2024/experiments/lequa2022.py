@@ -106,7 +106,7 @@ def main(
         (
             "EMaxL",
             EMaxL(clf, n_estimators=1, random_state=seed),
-            {"tau": np.logspace(-1, -5, 3)} | clf_grid("base_estimator")
+            {"tau": [1e-3, 1e-5, 0]} | clf_grid("base_estimator")
         ),
         # (
         #     "PACC",
