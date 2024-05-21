@@ -97,7 +97,7 @@ def main(
         f"{prefix}__C": np.logspace(-1, 2, 10),
     }
     q_grid = {
-        "tau_1": [1e-1, 1e-3, 1e-5, 0],
+        "tau_0": [1e-3, 1e-5, 0],
     }
     if is_test_run: # use a minimal testing configuration
         clf = LogisticRegression(max_iter=3, random_state=seed)
