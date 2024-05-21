@@ -96,17 +96,23 @@ def main(
     clf_grid = lambda prefix: {
         f"{prefix}__C": np.logspace(-1, 2, 10),
     }
+    q_grid = {
+        "tau_0": [1e-3, 1e-5, 0],
+    }
     if is_test_run: # use a minimal testing configuration
         clf = LogisticRegression(max_iter=3, random_state=seed)
         clf_grid = lambda prefix: {
             f"{prefix}__C": [1.0],
-    }
+        }
+        q_grid = {
+            "tau_1": [1e1, 0],
+        }
     methods = [ # (method_name, method, param_grid)
         # ("SLD", qp.method.aggregative.EMQ(clf), clf_grid("classifier")),
         (
             "EMaxL",
             EMaxL(clf, n_estimators=1, random_state=seed),
-            {"tau": [1e-3, 1e-5, 0]} | clf_grid("base_estimator")
+            q_grid | clf_grid("base_estimator")
         ),
         # (
         #     "PACC",

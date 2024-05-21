@@ -271,7 +271,8 @@ class EMaxL(BaseQuantifier):
       min_samples_per_class = 5,
       solver = "trust-ncg",
       solver_options = {"gtol": 0, "xtol": 1e-16, "maxiter": 1000}, # , "disp": True
-      tau = 0,
+      tau_0 = 0,
+      tau_1 = 0,
       ) -> None:
     self.base_estimator = base_estimator
     self.n_estimators = n_estimators
@@ -279,7 +280,8 @@ class EMaxL(BaseQuantifier):
     self.min_samples_per_class = min_samples_per_class
     self.solver = solver
     self.solver_options = solver_options
-    self.tau = tau
+    self.tau_0 = tau_0
+    self.tau_1 = tau_1
   def fit(self, X, y=None, n_classes=None):
     if y is None:
       return self.fit(*X.Xy, X.n_classes) # assume that X is a QuaPy LabelledCollection
@@ -315,7 +317,9 @@ class EMaxL(BaseQuantifier):
     pXY = np.concatenate(pXY) # concatenate along the dimension 0
     def fun(x):
       p = _jnp_softmax(x)
-      return -jnp.log(pXY @ p).mean() + self.tau * jnp.sum((p[1:] - p[:-1])**2) / 2
+      xi_0 = jnp.sum((p[1:] - p[:-1])**2) / 2 # deviation from a constant
+      xi_1 = jnp.sum((-p[:-2] + 2 * p[1:-1] - p[2:])**2) / 2 # deviation from a linear function
+      return -jnp.log(pXY @ p).mean() + self.tau_0 * xi_0 + self.tau_1 * xi_1
     jac = jax.grad(fun)
     hess = jax.jacfwd(jac) # forward-mode AD
     rng = np.random.RandomState(self.random_state)
