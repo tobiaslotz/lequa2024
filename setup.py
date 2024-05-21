@@ -36,7 +36,7 @@ setup(
         "scikit-learn",
         "scipy",
     ],
-    python_requires=">=3.11",
+    python_requires=">=3.10",
     include_package_data=True,
     zip_safe=False,
     test_suite="nose.collector",

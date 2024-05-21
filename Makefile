@@ -1,7 +1,7 @@
 SOURCES=$(shell find lequa2024 -name "*.py")
 
 results_lequa2022.csv: $(SOURCES)
-	venv/bin/python -m lequa2024.experiments.lequa2022 --n_jobs 9 $@
+	venv/bin/python -m lequa2024.experiments.lequa2022 --n_jobs 10 $@
 
 test: test_lequa2022.csv
 test_lequa2022.csv: $(SOURCES)
