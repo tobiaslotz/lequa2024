@@ -107,7 +107,7 @@ def create_submission(model, protocol, file_path=None):
     else:
         raise ValueError("Unknown prediction function.")
     print('Generating predictions on test-set ...')
-    for id, sample in enumerate(tqdm(protocol, total=5000)):
+    for id, sample in tqdm(protocol, total=5000):
         preds = pred_func(sample)
         pred_prevs.add(id, preds)
     if file_path is None:
