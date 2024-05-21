@@ -112,6 +112,23 @@ def match_distance(prevs, prevs_hat):
     distances = np.abs(P-P_hat)
     return distances[:-1].sum()
 
+def mean_macro_normalized_match_distance(prevs, prevs_hat):
+    stars = np.arange(5)+1  # [1,2,3,4,5]
+
+    # computes the average stars rate
+    mean_true_stars = (stars * prevs).sum(axis=1)
+
+    # bins results by average stars rate in [1,2), [2,3), [3,4), [4,5]
+    bin_idx = np.digitize(mean_true_stars, bins=stars)
+    errors = np.zeros(shape=len(stars)-1, dtype=float)
+
+    for star in stars[:-1]:
+        select = bin_idx==star
+        bin_true = prevs[select]
+        bin_pred = prevs_hat[select]
+        errors[star-1] = normalized_match_distance(bin_true, bin_pred)
+
+    errors = errors.mean()
 
 # -----------------------------------------------------------------------------------------------
 # common functions

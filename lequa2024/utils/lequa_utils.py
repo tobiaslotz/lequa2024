@@ -97,3 +97,21 @@ def evaluate_model(model, protocol, task, pred_path=None):
         errors.append((metric, eval.mean(), eval.std()))
         print(f'm{metric}: {eval.mean():.5f} ~ {eval.std():.5f}')
     return errors
+
+def create_submission(model, protocol, file_path=None):
+    pred_prevs = ResultSubmission()
+    if hasattr(model, 'predict'):
+        pred_func = getattr(model, 'predict')
+    elif hasattr(model, 'quantify'):
+        pred_func = getattr(model, 'quantify')
+    else:
+        raise ValueError("Unknown prediction function.")
+    print('Generating predictions on test-set ...')
+    for id, sample in enumerate(tqdm(protocol, total=5000)):
+        preds = pred_func(sample)
+        pred_prevs.add(id, preds)
+    if file_path is None:
+        file_path = 'submission.txt'
+    print(f'Dumping predictions for test-set at path: {file_path}')
+    pred_prevs.dump(file_path)
+

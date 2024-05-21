@@ -13,7 +13,7 @@ from sklearn.linear_model import LogisticRegression
 from time import time
 from . import MyGridSearchQ
 from ..methods import KDEyMLQP, EMaxL
-from ..utils import load_lequa2024
+from ..utils import load_lequa2024, evaluate_model, create_submission, normalized_match_distance
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -27,6 +27,7 @@ def trial(
         seed,
         n_trials,
         is_test_run,
+        task
         ):
     """A single trial of lequa2022.main()"""
     np.random.seed(seed)
@@ -36,9 +37,18 @@ def trial(
         f"{method_name} / {data_name} starting"
     )
 
+    # use tau_1 parameter for task T3
+    if 'tau_0' in param_grid.keys() and task == 'T3': 
+        param_grid['tau_1'] = param_grid['tau_0']
+        param_grid.pop('tau_0')
+
+    error_metric = 'mrae'
+    if task == 'T3':
+        error_metric = normalized_match_distance
+
     # load the data
     if data_name == "lequa2024_val":
-        X_trn, y_trn, val_gen, _ = load_lequa2024(task="T2") # like T1B from 2022
+        X_trn, y_trn, val_gen, tst_gen = load_lequa2024(task=task) # like T1B from 2022
         trn_data = qp.data.base.LabelledCollection(X_trn, y_trn)
     elif data_name == "lequa2022_val":
         trn_data, val_gen, _ = qp.datasets.fetch_lequa2022(task="T1B")
@@ -55,7 +65,7 @@ def trial(
         model = method,
         param_grid = param_grid,
         protocol = val_gen,
-        error = "mrae",
+        error = error_metric, # "mrae",
         extra_metrics = [
             "mean_logodds_uniformness_ratio_score",
             "mean_probability_uniformness_ratio_score",
@@ -74,6 +84,9 @@ def trial(
         f"{method_name} validated RAE={quapy_method.best_score_:.4f}",
         f"{quapy_method.best_params_}",
     )
+    # create submission file
+    create_submission(quapy_method.best_model(), tst_gen, "{task}_submission.txt")
+
     return val_results
 
 def main(
@@ -94,10 +107,10 @@ def main(
     # configure the quantification methods
     clf = LogisticRegression(max_iter=3000, tol=1e-6, random_state=seed)
     clf_grid = lambda prefix: {
-        f"{prefix}__C": np.logspace(-1, 2, 10),
+        f"{prefix}__C": np.logspace(-1, 2, 20),
     }
     q_grid = {
-        "tau_0": [1e-3, 1e-5, 0],
+        "tau_0": [1e-6, 1e-5, 1e-4, 1e-3, 0, 1e1],
     }
     if is_test_run: # use a minimal testing configuration
         clf = LogisticRegression(max_iter=3, random_state=seed)
@@ -125,12 +138,14 @@ def main(
         # ),
     ]
 
+    tasks = ['T1', 'T2', 'T3', 'T4']
+
     # iterate over all methods and data sets
     data_names = ["lequa2024_val"] # ["lequa2024_val", "lequa2022_val", "lequa2022_tst"]
     n_trials = len(methods) * len(data_names)
     print(f"Starting {n_trials} trials")
     val_results = []
-    for i_trial, (method, data_name) in enumerate(itertools.product(methods, data_names)):
+    for i_trial, (method, data_name, task) in enumerate(itertools.product(methods, data_names, tasks)):
         val_results.append(trial(
             i_trial,
             *method, # = (method_name, method, param_grid)
@@ -139,6 +154,7 @@ def main(
             seed,
             n_trials,
             is_test_run,
+            task,
         ))
     val_df = pd.concat(val_results).reset_index(drop=True)
     val_df.to_csv(val_path) # store the results
