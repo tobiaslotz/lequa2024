@@ -252,7 +252,8 @@ class MyGridSearchQ(qp.model_selection.GridSearchQ):
                     self.extra_scores_[extra_metric][str(params)] = scores[1+i_extra_metric]
                     df_result[extra_metric] = scores[1+i_extra_metric]
                 df_results.append(df_result)
-                df_progress.append(progress)
+                if self.store_progress:
+                    df_progress.append(progress)
             else:
                 self.param_scores_[str(params)] = status.status
                 self.error_collector.append(status)
@@ -262,7 +263,8 @@ class MyGridSearchQ(qp.model_selection.GridSearchQ):
                     **params,
                 })
         self.param_scores_df_ = pd.DataFrame(df_results)
-        self.progress_ = pd.concat(df_progress, ignore_index=True)
+        if self.store_progress:
+            self.progress_ = pd.concat(df_progress, ignore_index=True)
 
         tend = time()-tinit
 
