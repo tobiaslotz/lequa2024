@@ -78,6 +78,7 @@ def trial(
     val_results = quapy_method.param_scores_df_
     val_results["method"] = method_name
     val_results["data"] = data_name
+    val_results["task"] = task
     print(
         f"VAL [{i_trial+1:02d}/{n_trials:02d}]:",
         datetime.now().strftime('%H:%M:%S'),
@@ -85,7 +86,7 @@ def trial(
         f"{quapy_method.best_params_}",
     )
     # create submission file
-    create_submission(quapy_method.best_model(), tst_gen, "{task}_submission.txt")
+    create_submission(quapy_method.best_model(), tst_gen, f"{task}_submission_{method_name}_{quapy_method.best_score_:.4f}.txt")
 
     return val_results
 
@@ -107,10 +108,12 @@ def main(
     # configure the quantification methods
     clf = LogisticRegression(max_iter=3000, tol=1e-6, random_state=seed)
     clf_grid = lambda prefix: {
-        f"{prefix}__C": np.logspace(-1, 2, 20),
+        # f"{prefix}__C": np.logspace(-1, 2, 20),  current run
+        f"{prefix}__C": np.logspace(-4, 4, 20), # baseline grid
+        f"{prefix}__class_weight": [None, 'balanced'],
     }
     q_grid = {
-        "tau_0": [1e-6, 1e-5, 1e-4, 1e-3, 0, 1e1],
+        "tau_0": [0, 1e-9, 1e-8, 1e-7, 1e-6],
     }
     if is_test_run: # use a minimal testing configuration
         clf = LogisticRegression(max_iter=3, random_state=seed)
@@ -142,7 +145,7 @@ def main(
 
     # iterate over all methods and data sets
     data_names = ["lequa2024_val"] # ["lequa2024_val", "lequa2022_val", "lequa2022_tst"]
-    n_trials = len(methods) * len(data_names)
+    n_trials = len(methods) * len(data_names) * len(tasks)
     print(f"Starting {n_trials} trials")
     val_results = []
     for i_trial, (method, data_name, task) in enumerate(itertools.product(methods, data_names, tasks)):

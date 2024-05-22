@@ -24,7 +24,7 @@ class ValidationSampleFromDir(AbstractProtocol):
             sample, _ = load_vector_documents(os.path.join(self.path_dir, f'{id}.txt'))
             yield sample, prev
 
-def load_lequa2024(task='T1', data_dir=None):
+def load_lequa2024(task='T1', data_dir=None, merge_t3=True):
     task = task.lower()
     if task != 't1' and task != 't2' and task != 't3' and task != 't4':
         raise ValueError(f'Invalid task specification {task.upper()}. T1-T4 are supported')
@@ -55,6 +55,9 @@ def load_lequa2024(task='T1', data_dir=None):
         y_train = np.zeros((N_SAMPLE_FILES, SAMPLE_SIZE[task]), dtype=np.int32)
         for i in range(N_SAMPLE_FILES):
             X_train[i], y_train[i] = load_vector_documents(os.path.join(train_dir, f'{i}.txt'))
+        if merge_t3:
+            X_train = X_train.reshape((X_train.shape[0]*X_train.shape[1], 256))
+            y_train = y_train.flatten()
     else:
         train_data_path = os.path.join(data_dir, f'train/{task}/public/training_data.txt')
         if not os.path.exists(train_data_path):
