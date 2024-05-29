@@ -10,10 +10,11 @@ from qunfold import PACC
 from qunfold.quapy import QuaPyWrapper
 from qunfold.sklearn import CVClassifier
 from sklearn.linear_model import LogisticRegression
+from sklearn.neural_network import MLPClassifier
 from time import time
 from . import MyGridSearchQ
 from ..methods import KDEyMLQP, EMaxL
-from ..utils import load_lequa2024, evaluate_model, create_submission, normalized_match_distance
+from ..utils import load_lequa2024, evaluate_model, create_submission, mean_macro_normalized_match_distance
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -44,7 +45,7 @@ def trial(
 
     error_metric = 'mrae'
     if task == 'T3':
-        error_metric = normalized_match_distance
+        error_metric = mean_macro_normalized_match_distance
 
     # load the data
     if data_name == "lequa2024_val":
@@ -107,13 +108,26 @@ def main(
 
     # configure the quantification methods
     clf = LogisticRegression(max_iter=3000, tol=1e-6, random_state=seed)
+    clf_MLP = MLPClassifier(max_iter=3000, tol=1e-6, random_state=seed)
     clf_grid = lambda prefix: {
-        # f"{prefix}__C": np.logspace(-1, 2, 20),  current run
-        f"{prefix}__C": np.logspace(-4, 4, 20), # baseline grid
+        #f"{prefix}__C": np.linspace(0.3, 0.4, 15),  # T1
+        #f"{prefix}__C": np.linspace(0.35, 0.5, 15), # T2
+        f"{prefix}__C": np.concatenate([np.linspace(70, 270, 15), np.array([750, 800, 850])]), # T3
+        #f"{prefix}__C": np.linspace(0.35, 0.75, 15), # T4
+
         f"{prefix}__class_weight": [None, 'balanced'],
     }
+    clf_grid_mlp = lambda prefix: {
+        "f{prefix}__hidden_layer_sizes" : [[256], [512]],
+        "f{prefix}__activation" : ['tanh'],
+        "f{prefix}__alpha" : [1e-5, 1e-3, 1e-1], # L2-Reg-Term
+        "f{prefix}__learning_rate_init" : [1e-5, 1e-3, 1e-1, 1],
+        "f{prefix}__learning_rate" : ['constant', 'invscaling', 'adaptive'],
+        "f{prefix}__solver" : ['lbfgs', 'sgd', 'adam'],
+    }
     q_grid = {
-        "tau_0": [0, 1e-9, 1e-8, 1e-7, 1e-6],
+        "tau_0": [0, 1e-5, 1e-3],
+        "n_estimator" : [1],
     }
     if is_test_run: # use a minimal testing configuration
         clf = LogisticRegression(max_iter=3, random_state=seed)
@@ -130,18 +144,15 @@ def main(
             EMaxL(clf, n_estimators=1, random_state=seed),
             q_grid | clf_grid("base_estimator")
         ),
-        # (
-        #     "PACC",
-        #     QuaPyWrapper(PACC(CVClassifier(
-        #         clf,
-        #         n_estimators = 3 if is_test_run else 10,
-        #         random_state = seed,
-        #     ))),
-        #     clf_grid("transformer__classifier__estimator")
-        # ),
+        #(
+        #    "EMaxL_MLP",
+        #    EMaxL(clf_MLP, n_estimators=1, random_state=seed),
+        #    clf_grid_mlp("base_estimator")
+        #),
     ]
 
-    tasks = ['T1', 'T2', 'T3', 'T4']
+    #tasks = ['T1', 'T2', 'T3', 'T4']
+    tasks = ['T3']
 
     # iterate over all methods and data sets
     data_names = ["lequa2024_val"] # ["lequa2024_val", "lequa2022_val", "lequa2022_tst"]
