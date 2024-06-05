@@ -6,5 +6,6 @@ from .lequa_utils import (
 
 from .evaluate import (
     ResultSubmission,
-    normalized_match_distance
+    mean_macro_normalized_match_distance,
+    mean_normalized_match_distance
 )

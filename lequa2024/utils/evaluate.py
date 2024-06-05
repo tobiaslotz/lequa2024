@@ -108,27 +108,31 @@ def match_distance(prevs, prevs_hat):
     P = np.cumsum(prevs)
     P_hat = np.cumsum(prevs_hat)
     assert np.isclose(P_hat[-1], 1.0, rtol=ERROR_TOL), \
-        'arg error in match_distance: the array does not represent a valid distribution'
+        f'arg error in match_distance: the array {prevs_hat} with shape {prevs_hat.shape} does not represent a valid distribution' \
+        f'The expected prev was {prevs}'
     distances = np.abs(P-P_hat)
     return distances[:-1].sum()
 
-def mean_macro_normalized_match_distance(prevs, prevs_hat):
+def mean_normalized_match_distance(true_prevs_arr, pred_prevs_arr):
+    nmds = [normalized_match_distance(prevs, prevs_hat) for (prevs, prevs_hat) in list(zip(true_prevs_arr, pred_prevs_arr))]
+    return np.mean(nmds)
+
+def mean_macro_normalized_match_distance(true_prevs_arr, pred_prevs_arr):
     stars = np.arange(5)+1  # [1,2,3,4,5]
 
     # computes the average stars rate
-    mean_true_stars = (stars * prevs).sum(axis=1)
-
+    mean_true_stars = (stars * true_prevs_arr).sum(axis=1)
     # bins results by average stars rate in [1,2), [2,3), [3,4), [4,5]
     bin_idx = np.digitize(mean_true_stars, bins=stars)
     errors = np.zeros(shape=len(stars)-1, dtype=float)
-
     for star in stars[:-1]:
         select = bin_idx==star
-        bin_true = prevs[select]
-        bin_pred = prevs_hat[select]
-        errors[star-1] = normalized_match_distance(bin_true, bin_pred)
+        bin_true = true_prevs_arr[select]
+        bin_pred = pred_prevs_arr[select]
+        errors[star-1] = eval_metric(bin_true, bin_pred, normalized_match_distance, average=True)
 
     errors = errors.mean()
+    return errors
 
 # -----------------------------------------------------------------------------------------------
 # common functions

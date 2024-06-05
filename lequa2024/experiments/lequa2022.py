@@ -14,7 +14,8 @@ from sklearn.neural_network import MLPClassifier
 from time import time
 from . import MyGridSearchQ
 from ..methods import KDEyMLQP, EMaxL
-from ..utils import load_lequa2024, evaluate_model, create_submission, mean_macro_normalized_match_distance
+from ..utils import (load_lequa2024, evaluate_model, create_submission, mean_macro_normalized_match_distance, 
+                     mean_normalized_match_distance)
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -45,7 +46,7 @@ def trial(
 
     error_metric = 'mrae'
     if task == 'T3':
-        error_metric = mean_macro_normalized_match_distance
+        error_metric = mean_normalized_match_distance
 
     # load the data
     if data_name == "lequa2024_val":
@@ -118,12 +119,12 @@ def main(
         f"{prefix}__class_weight": [None, 'balanced'],
     }
     clf_grid_mlp = lambda prefix: {
-        "f{prefix}__hidden_layer_sizes" : [[256], [512]],
-        "f{prefix}__activation" : ['tanh'],
-        "f{prefix}__alpha" : [1e-5, 1e-3, 1e-1], # L2-Reg-Term
-        "f{prefix}__learning_rate_init" : [1e-5, 1e-3, 1e-1, 1],
-        "f{prefix}__learning_rate" : ['constant', 'invscaling', 'adaptive'],
-        "f{prefix}__solver" : ['lbfgs', 'sgd', 'adam'],
+        f"{prefix}__hidden_layer_sizes" : [[256], [512]],
+        f"{prefix}__activation" : ['tanh'],
+        f"{prefix}__alpha" : [1e-7, 1e-5, 1e-3], # L2-Reg-Term
+        f"{prefix}__learning_rate_init" : [1e-5, 1e-3, 1e-1],
+        f"{prefix}__learning_rate" : ['constant'],
+        f"{prefix}__solver" : ['adam'],
     }
     q_grid = {
         "tau_0": [0, 1e-5, 1e-3],
@@ -139,16 +140,16 @@ def main(
         }
     methods = [ # (method_name, method, param_grid)
         # ("SLD", qp.method.aggregative.EMQ(clf), clf_grid("classifier")),
-        (
-            "EMaxL",
-            EMaxL(clf, n_estimators=1, random_state=seed),
-            q_grid | clf_grid("base_estimator")
-        ),
         #(
-        #    "EMaxL_MLP",
-        #    EMaxL(clf_MLP, n_estimators=1, random_state=seed),
-        #    clf_grid_mlp("base_estimator")
+        #    "EMaxL",
+        #    EMaxL(clf, n_estimators=1, random_state=seed),
+        #    q_grid | clf_grid("base_estimator")
         #),
+        (
+            "EMaxL_MLP",
+            EMaxL(clf_MLP, n_estimators=1, random_state=seed),
+            clf_grid_mlp("base_estimator") | q_grid
+        ),
     ]
 
     #tasks = ['T1', 'T2', 'T3', 'T4']
