@@ -315,6 +315,13 @@ class EMaxL(BaseQuantifier):
       pXY_i = estimator.predict_proba(X) / estimator_p_trn # P(X|Y)
       pXY.append(pXY_i / pXY_i.sum(axis=1, keepdims=True))
     pXY = np.concatenate(pXY) # concatenate along the dimension 0
+
+    # TODO 1) filter out all rows from pXY that contain zeros or ones, or values close to zero or one up to some self.epsilon. Goal: to reduce thrown errors / warnings and to replace the corresponding estimates with proper ones.
+
+    # TODO 2) "side-chain" those rows that have contained values close to one, by setting up a classify-and-count estimate that is later added to opt.x. Appropriately weight both the CC estimate and opt.x by the fraction of rows that has lead to each of these estimates. Goal: to further improve the estimation (see also the todo 3).
+
+    # TODO 3) consider self.epsilon as a hyper-parameter, assuming that all fairly confident predictions are probably correct, not only the extemely confident exceptions.
+
     def fun(x):
       p = _jnp_softmax(x)
       xi_0 = jnp.sum((p[1:] - p[:-1])**2) / 2 # deviation from a constant
