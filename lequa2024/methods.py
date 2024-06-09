@@ -273,6 +273,7 @@ class EMaxL(BaseQuantifier):
       solver_options = {"gtol": 0, "xtol": 1e-16, "maxiter": 1000}, # , "disp": True
       tau_0 = 0,
       tau_1 = 0,
+      epsilon = 0,
       ) -> None:
     self.base_estimator = base_estimator
     self.n_estimators = n_estimators
@@ -282,6 +283,7 @@ class EMaxL(BaseQuantifier):
     self.solver_options = solver_options
     self.tau_0 = tau_0
     self.tau_1 = tau_1
+    self.epsilon = epsilon
   def fit(self, X, y=None, n_classes=None):
     if y is None:
       return self.fit(*X.Xy, X.n_classes) # assume that X is a QuaPy LabelledCollection
@@ -317,9 +319,11 @@ class EMaxL(BaseQuantifier):
     pXY = np.concatenate(pXY) # concatenate along the dimension 0
 
     # TODO 1) filter out all rows from pXY that contain zeros or ones, or values close to zero or one up to some self.epsilon. Goal: to reduce thrown errors / warnings and to replace the corresponding estimates with proper ones.
+    epsilon_filtered_rows = pXY[np.any(pXY <= self.epsilon, axis=1), :]
+    pXY = pXY[np.all(pXY > self.epsilon, axis=1),:]
 
     # TODO 2) "side-chain" those rows that have contained values close to one, by setting up a classify-and-count estimate that is later added to opt.x. Appropriately weight both the CC estimate and opt.x by the fraction of rows that has lead to each of these estimates. Goal: to further improve the estimation (see also the todo 3).
-
+    
     # TODO 3) consider self.epsilon as a hyper-parameter, assuming that all fairly confident predictions are probably correct, not only the extemely confident exceptions.
 
     def fun(x):
