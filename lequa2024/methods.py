@@ -327,35 +327,27 @@ class EMaxL(BaseQuantifier):
     # TODO 3) consider self.epsilon as a hyper-parameter, assuming that all fairly confident predictions are probably correct, not only the extemely confident exceptions.
 
     def fun(x):
-      #p = _jnp_softmax(x)
-      p = x
+      p = _jnp_softmax(x)
       xi_0 = jnp.sum((p[1:] - p[:-1])**2) / 2 # deviation from a constant
       xi_1 = jnp.sum((-p[:-2] + 2 * p[1:-1] - p[2:])**2) / 2 # deviation from a linear function
       return -jnp.log(pXY @ p).mean() + self.tau_0 * xi_0 + self.tau_1 * xi_1
     jac = jax.grad(fun)
     hess = jax.jacfwd(jac) # forward-mode AD
     rng = np.random.RandomState(self.random_state)
-    #x0 = _rand_x0(rng, self.n_classes) # random starting point
+    x0 = _rand_x0(rng, self.n_classes) # random starting point
     #x0 = jnp.zeros(self.n_classes)
-    x0 = np.full(fill_value=1 / self.n_classes, shape=(self.n_classes,))
-    bounds = tuple((0, 1) for _ in range(self.n_classes))
-    constraints = ({'type': 'eq', 'fun': lambda x: 1 - sum(x)})
     state = _CallbackStateWithVarArgs(x0)
     try:
       opt = minimize(
         fun, # JAX function l -> loss
         x0,
-        #jac = _check_derivative(jac, "jac"),
-        #hess = _check_derivative(hess, "hess"),
-        bounds=bounds,
-        constraints=constraints,
-        method='SLSQP',
-        #method = self.solver,
-        #options = self.solver_options,
+        jac = _check_derivative(jac, "jac"),
+        hess = _check_derivative(hess, "hess"),
+        method = self.solver,
+        options = self.solver_options,
         callback = state.callback()
       )
     except (DerivativeError, ValueError):
       traceback.print_exc()
       opt = state.get_state()
-    #return Result(_np_softmax(opt.x), opt.nit, opt.message)
-    return Result(opt.x, opt.nit, opt.message)
+    return Result(_np_softmax(opt.x), opt.nit, opt.message)
