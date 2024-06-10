@@ -319,23 +319,27 @@ class EMaxL(BaseQuantifier):
     pXY = np.concatenate(pXY) # concatenate along the dimension 0
 
     # TODO 1) filter out all rows from pXY that contain zeros or ones, or values close to zero or one up to some self.epsilon. Goal: to reduce thrown errors / warnings and to replace the corresponding estimates with proper ones.
-    epsilon_filtered_rows = pXY[np.any(pXY <= self.epsilon, axis=1), :]
-    pXY = pXY[np.all(pXY > self.epsilon, axis=1),:]
+    #epsilon_filtered_rows = pXY[np.any(pXY <= self.epsilon, axis=1), :]
+    #pXY = pXY[np.all(pXY > self.epsilon, axis=1),:]
 
     # TODO 2) "side-chain" those rows that have contained values close to one, by setting up a classify-and-count estimate that is later added to opt.x. Appropriately weight both the CC estimate and opt.x by the fraction of rows that has lead to each of these estimates. Goal: to further improve the estimation (see also the todo 3).
     
     # TODO 3) consider self.epsilon as a hyper-parameter, assuming that all fairly confident predictions are probably correct, not only the extemely confident exceptions.
 
     def fun(x):
-      p = _jnp_softmax(x)
+      #p = _jnp_softmax(x)
+      p = x
       xi_0 = jnp.sum((p[1:] - p[:-1])**2) / 2 # deviation from a constant
       xi_1 = jnp.sum((-p[:-2] + 2 * p[1:-1] - p[2:])**2) / 2 # deviation from a linear function
       return -jnp.log(pXY @ p).mean() + self.tau_0 * xi_0 + self.tau_1 * xi_1
     jac = jax.grad(fun)
     hess = jax.jacfwd(jac) # forward-mode AD
     rng = np.random.RandomState(self.random_state)
-    x0 = _rand_x0(rng, self.n_classes) # random starting point
-    # x0 = jnp.zeros(self.n_classes-1)
+    #x0 = _rand_x0(rng, self.n_classes) # random starting point
+    #x0 = jnp.zeros(self.n_classes)
+    x0 = np.full(fill_value=1 / self.n_classes, shape=(self.n_classes,))
+    bounds = tuple((0, 1) for _ in range(self.n_classes))
+    constraints = ({'type': 'eq', 'fun': lambda x: 1 - sum(x)})
     state = _CallbackStateWithVarArgs(x0)
     try:
       opt = minimize(
@@ -343,6 +347,8 @@ class EMaxL(BaseQuantifier):
         x0,
         jac = _check_derivative(jac, "jac"),
         hess = _check_derivative(hess, "hess"),
+        bounds=bounds,
+        constraints=constraints,
         method = self.solver,
         options = self.solver_options,
         callback = state.callback()
@@ -350,4 +356,5 @@ class EMaxL(BaseQuantifier):
     except (DerivativeError, ValueError):
       traceback.print_exc()
       opt = state.get_state()
-    return Result(_np_softmax(opt.x), opt.nit, opt.message)
+    #return Result(_np_softmax(opt.x), opt.nit, opt.message)
+    return Result(opt.x, opt.nit, opt.message)
