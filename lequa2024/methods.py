@@ -345,12 +345,13 @@ class EMaxL(BaseQuantifier):
       opt = minimize(
         fun, # JAX function l -> loss
         x0,
-        jac = _check_derivative(jac, "jac"),
-        hess = _check_derivative(hess, "hess"),
+        #jac = _check_derivative(jac, "jac"),
+        #hess = _check_derivative(hess, "hess"),
         bounds=bounds,
         constraints=constraints,
-        method = self.solver,
-        options = self.solver_options,
+        method='SLSQP',
+        #method = self.solver,
+        #options = self.solver_options,
         callback = state.callback()
       )
     except (DerivativeError, ValueError):
