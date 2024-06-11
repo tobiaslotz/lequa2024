@@ -87,6 +87,12 @@ def trial(
         f"{method_name} validated RAE={quapy_method.best_score_:.4f}",
         f"{quapy_method.best_params_}",
     )
+
+    _, _, val_gen, _ = load_lequa2024(task=task) # like T1B from 2022
+
+    print("evaluating ...")
+    evaluate_model(quapy_method.best_model(), val_gen, "T3", "val_predictions_T3.csv")
+
     # create submission file
     create_submission(quapy_method.best_model(), tst_gen, f"{task}_submission_{method_name}_{quapy_method.best_score_:.4f}.txt")
 
