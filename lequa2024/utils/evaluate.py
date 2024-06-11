@@ -114,7 +114,7 @@ def match_distance(prevs, prevs_hat):
     return distances[:-1].sum()
 
 def mean_normalized_match_distance(true_prevs_arr, pred_prevs_arr):
-    nmds = [normalized_match_distance(prevs, prevs_hat) for (prevs, prevs_hat) in list(zip(true_prevs_arr, pred_prevs_arr))]
+    nmds = [normalized_match_distance(prevs, prevs_hat) for (prevs, prevs_hat) in zip(true_prevs_arr, pred_prevs_arr)]
     return np.mean(nmds)
 
 def mean_macro_normalized_match_distance(true_prevs_arr, pred_prevs_arr):
