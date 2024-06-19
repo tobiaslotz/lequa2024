@@ -3,6 +3,7 @@ from .evaluate import evaluate_submission
 from .constants import SAMPLE_SIZE
 from tqdm import tqdm
 import os
+import shutil
 from pathlib import Path
 import numpy as np
 import zipfile
@@ -33,18 +34,33 @@ def load_lequa2024(task='T1', data_dir=None, merge_t3=True):
         data_dir = os.path.join(str(Path.home()), 'lequa2024_data/')
     os.makedirs(data_dir, exist_ok=True)
 
-    URL_TRAIN_DEV = f'https://zenodo.org/records/11091067/files/{task}.train_dev.zip'
-    URL_TEST = f'https://zenodo.org/records/11091067/files/{task}.test.zip'
+    URL_TRAIN_DEV = f'https://zenodo.org/records/11661820/files/{task}.train_dev.zip'
+    URL_TEST = f'https://zenodo.org/records/11661820/files/{task}.test.zip'
+    URL_TEST_PREVS = f'https://zenodo.org/records/11661820/files/{task}.test_prevalences.zip'
 
-    def download_data(url, is_train=True):
-        train_or_test = "test"
+    def download_data(url, gt_url=None, is_train=True):
         if is_train:
             train_or_test = "train"
-        tmp_path = os.path.join(data_dir, f'{train_or_test}/{task}_tmp.zip')
-        download_file_if_not_exists(url, tmp_path)
+            tmp_path = os.path.join(data_dir, f'train/{task}_tmp.zip')
+            tmp_path_gt = None
+            download_file_if_not_exists(url, tmp_path)
+        else:
+            train_or_test = "test"
+            tmp_path = os.path.join(data_dir, f'test/{task}_tmp.zip')
+            tmp_path_gt = os.path.join(data_dir, f'test/{task}_prevalences_tmp.zip')
+            download_file_if_not_exists(url, tmp_path)
+            download_file_if_not_exists(gt_url, tmp_path_gt)
         with zipfile.ZipFile(tmp_path) as file:
             file.extractall(os.path.join(data_dir, train_or_test))
+        if tmp_path_gt is not None:
+            with zipfile.ZipFile(tmp_path_gt) as file:
+                file.extractall(os.path.join(data_dir, f"test/{task}/public"))
+            target_test_dir = os.path.join(data_dir, f"test/{task}/public")
+            os.rename(os.path.join(target_test_dir, f"{task}/public/test_prevalences.txt"), 
+                      os.path.join(target_test_dir, "test_prevalences.txt"))
+            shutil.rmtree(os.path.join(target_test_dir, f"{task}"))
         os.remove(tmp_path)
+        os.remove(tmp_path_gt)
 
     if task == 'T3':  
         train_dir = os.path.join(data_dir, f'train/{task}/public/training_samples/')
@@ -69,9 +85,10 @@ def load_lequa2024(task='T1', data_dir=None, merge_t3=True):
     val_gen = ValidationSampleFromDir(val_dir, val_gt_path)
 
     test_dir = os.path.join(data_dir, f'test/{task}/public/test_samples')
-    if not os.path.exists(test_dir):
-        download_data(URL_TEST, is_train=False)
-    test_gen = gen_load_samples(test_dir)
+    test_gt_path = os.path.join(data_dir, f'test/{task}/public/test_prevalences.txt')
+    if not os.path.exists(test_dir) or not os.path.exists(test_gt_path):
+        download_data(URL_TEST, gt_url=URL_TEST_PREVS, is_train=False)
+    test_gen = ValidationSampleFromDir(test_dir, test_gt_path)
 
     return X_train, y_train, val_gen, test_gen
 
