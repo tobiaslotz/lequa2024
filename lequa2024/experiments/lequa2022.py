@@ -88,13 +88,12 @@ def trial(
         f"{quapy_method.best_params_}",
     )
 
-    _, _, val_gen, _ = load_lequa2024(task=task) # like T1B from 2022
+    #_, _, val_gen, _ = load_lequa2024(task=task) # like T1B from 2022
 
-    print("evaluating ...")
-    evaluate_model(quapy_method.best_model(), val_gen, "T3", "val_predictions_T3.csv")
+    evaluate_model(quapy_method.best_model(), tst_gen, task, f"val_predictions_{task}.csv")
 
     # create submission file
-    create_submission(quapy_method.best_model(), tst_gen, f"{task}_submission_{method_name}_{quapy_method.best_score_:.4f}.txt")
+    #create_submission(quapy_method.best_model(), tst_gen, f"{task}_submission_{method_name}_{quapy_method.best_score_:.4f}.txt")
 
     return val_results
 
@@ -117,24 +116,59 @@ def main(
     clf = LogisticRegression(max_iter=3000, tol=1e-6, random_state=seed)
     clf_MLP = MLPClassifier(max_iter=3000, tol=1e-6, random_state=seed)
     clf_grid = lambda prefix: {
-        #f"{prefix}__C": np.linspace(0.3, 0.4, 15),  # T1
+        f"{prefix}__C": np.linspace(0.1, 0.35, 15),  # T1
         #f"{prefix}__C": np.linspace(0.35, 0.5, 15), # T2
-        f"{prefix}__C": np.concatenate([np.linspace(70, 270, 15), np.array([750, 800, 850])]), # T3
+        #f"{prefix}__C": np.concatenate([np.linspace(70, 270, 15), np.array([750, 800, 850])]), # T3
         #f"{prefix}__C": np.linspace(0.35, 0.75, 15), # T4
-
         f"{prefix}__class_weight": [None, 'balanced'],
     }
     clf_grid_mlp = lambda prefix: {
-        f"{prefix}__hidden_layer_sizes" : [[256], [512]],
+        f"{prefix}__hidden_layer_sizes" : [[320], [420], [512], [700]],
         f"{prefix}__activation" : ['tanh'],
-        f"{prefix}__alpha" : [1e-7, 1e-5, 1e-3], # L2-Reg-Term
-        f"{prefix}__learning_rate_init" : [1e-5, 1e-3, 1e-1],
+        f"{prefix}__alpha" : [1e-3, 1e-2, 1e-1, 1e1], # L2-Reg-Term
+        f"{prefix}__learning_rate_init" : [1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
         f"{prefix}__learning_rate" : ['constant'],
-        f"{prefix}__solver" : ['adam'],
+        f"{prefix}__solver" : ['adam', 'sgd'],
+    }
+    # mrae: 0.10913
+    test_grid_t4 = {
+        'tau_0': [1e-05],
+        'n_estimators': [1],
+        'base_estimator__C': [0.4357142857142857],
+        'base_estimator__class_weight': [None]
+    }
+    # NMD: 0.06585
+    test_grid_t3 = {
+        'base_estimator__hidden_layer_sizes': [320],
+        'base_estimator__activation': ['tanh'],
+        'base_estimator__alpha': [1e-06],
+        'base_estimator__learning_rate_init': [0.001],
+        'base_estimator__learning_rate': ['constant'],
+        'base_estimator__solver': ['adam'],
+        'n_estimators': [1],
+        'tau_1': [0.001]
+    }
+    # mrae: 0.103015
+    test_grid_t2 = {
+        'base_estimator__hidden_layer_sizes': [512],
+        'base_estimator__activation': ['tanh'],
+        'base_estimator__alpha': [0.1],
+        'base_estimator__learning_rate_init': [1e-05],
+        'base_estimator__learning_rate': ['constant'],
+        'base_estimator__solver': ['adam']
+    }
+    # mrae: 0.10853
+    test_grid_t1 = {
+        'base_estimator__hidden_layer_sizes': [512],
+        'base_estimator__activation': ['tanh'],
+        'base_estimator__alpha': [0.1],
+        'base_estimator__learning_rate_init': [1e-3],
+        'base_estimator__learning_rate': ['constant'],
+        'base_estimator__solver': ['sgd']
     }
     q_grid = {
         "tau_0": [0, 1e-5, 1e-3],
-        "n_estimator" : [1],
+        "n_estimators" : [1],
     }
     if is_test_run: # use a minimal testing configuration
         clf = LogisticRegression(max_iter=3, random_state=seed)
@@ -154,12 +188,17 @@ def main(
         (
             "EMaxL_MLP",
             EMaxL(clf_MLP, n_estimators=1, random_state=seed),
-            clf_grid_mlp("base_estimator") | q_grid
+            clf_grid_mlp("base_estimator")
         ),
+	    #(
+	    #    "EMaxL",
+	    #    EMaxL(clf, n_estimators=1, random_state=seed),
+	    #    test_grid_t4
+	    #)
     ]
 
     #tasks = ['T1', 'T2', 'T3', 'T4']
-    tasks = ['T3']
+    tasks = ['T2']
 
     # iterate over all methods and data sets
     data_names = ["lequa2024_val"] # ["lequa2024_val", "lequa2022_val", "lequa2022_tst"]

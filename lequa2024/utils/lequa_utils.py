@@ -103,7 +103,7 @@ def evaluate_model(model, protocol, task, pred_path=None):
         raise ValueError("Unknown prediction function.")
     
     print('Starting evaluation ...')
-    for id, (sample, gt) in enumerate(tqdm(protocol(), total=1000)):
+    for id, (sample, gt) in enumerate(tqdm(protocol(), total=5000)):
         preds = pred_func(sample)
         pred_prevs.add(id, preds)
         true_prevs.add(id, gt)

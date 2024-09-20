@@ -290,11 +290,11 @@ class EMaxL(BaseQuantifier):
     _check_y(y, n_classes)
     self.p_trn = class_prevalences(y, n_classes)
     self.n_classes = len(self.p_trn) # not None anymore
-    rng = np.random.RandomState(self.random_state)
+    self.rng = np.random.RandomState(self.random_state)
     self.estimators = [] # (estimator, estimator_p_trn)
     for _ in range(self.n_estimators):
       if self.n_estimators > 1:
-        p_e = rng.dirichlet(np.ones(self.n_classes))
+        p_e = self.rng.dirichlet(np.ones(self.n_classes))
         i_e = draw_indices(
           y,
           p_e,
@@ -333,8 +333,7 @@ class EMaxL(BaseQuantifier):
       return -jnp.log(pXY @ p).mean() + self.tau_0 * xi_0 + self.tau_1 * xi_1
     jac = jax.grad(fun)
     hess = jax.jacfwd(jac) # forward-mode AD
-    rng = np.random.RandomState(self.random_state)
-    x0 = _rand_x0(rng, self.n_classes) # random starting point
+    x0 = _rand_x0(self.rng, self.n_classes) # random starting point
     #x0 = jnp.zeros(self.n_classes)
     state = _CallbackStateWithVarArgs(x0)
     try:
